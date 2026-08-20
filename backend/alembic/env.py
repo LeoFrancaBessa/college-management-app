@@ -7,7 +7,7 @@ from alembic import context
 
 from app.core.config import settings
 from app.db.base import Base
-import app.models  # noqa: F401 — garante que todos os modelos sejam registrados no Base.metadata
+import app.models  # noqa: F401 — ensures every model is registered on Base.metadata
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -18,11 +18,11 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# URL real do banco vem das settings do app (variável de ambiente DATABASE_URL),
-# não do alembic.ini — assim um único lugar controla a configuração.
+# The real database URL comes from the app's settings (DATABASE_URL env var),
+# not from alembic.ini — this keeps configuration in a single place.
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
-# metadata usado pelo --autogenerate para comparar modelos com o banco
+# Metadata used by --autogenerate to compare the models against the database.
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,

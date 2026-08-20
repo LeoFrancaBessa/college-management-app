@@ -3,7 +3,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
 
-# Associação N:N entre Item e Tag (Regra pétrea 4: tags são transversais).
+# N:N association between Item and Tag (business rule 4: tags are cross-cutting).
 item_tags = Table(
     "item_tags",
     Base.metadata,
@@ -13,14 +13,14 @@ item_tags = Table(
 
 
 class Tag(Base):
-    """Tag transversal, independente de Período/Cadeira, extensível pelo usuário
-    (ver `04-funcionalidades.md` RF-27). Seed inicial aplicado via migração de
-    dados (Urgente, Importante, Prova, Trabalho em Grupo, Trabalho Individual,
-    Revisão, Aguardando Correção, Bloqueado).
+    """Cross-cutting tag, independent of Period/Course, extensible by the user
+    (see `04-funcionalidades.md` RF-27). Initial seed applied via a data
+    migration; the seed labels themselves stay in Portuguese since they're
+    user-facing content, not code.
     """
 
     __tablename__ = "tags"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    nome: Mapped[str] = mapped_column(String(100), unique=True, index=True)
-    cor: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    name: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+    color: Mapped[str | None] = mapped_column(String(20), nullable=True)

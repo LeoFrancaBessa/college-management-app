@@ -7,7 +7,7 @@ from app.db.base import Base
 
 
 class User(Base):
-    """Usuário único do sistema (uso pessoal — ver docs/architecture.md)."""
+    """The system's single user (personal use — see docs/architecture.md)."""
 
     __tablename__ = "users"
 

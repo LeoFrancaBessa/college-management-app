@@ -1,8 +1,8 @@
-"""Testes de sanidade das entidades de domínio (SQLAlchemy).
+"""Sanity tests for the domain entities (SQLAlchemy).
 
-Não testam migrações (isso é validado manualmente com Alembic) — testam se os
-relacionamentos entre Período, Cadeira, Item (aninhado), Tag e Board realmente
-funcionam quando usados via ORM, incluindo a dependência circular
+These don't test migrations (that's validated manually with Alembic) — they
+test whether the relationships between Period, Course, Item (nested), Tag and
+Board actually work when used via the ORM, including the circular dependency
 Board <-> Item <-> BoardColumn.
 """
 
@@ -12,12 +12,12 @@ from sqlalchemy.orm import Session
 
 from app.db.base import Base
 from app.models.board import Board, BoardColumn
-from app.models.cadeira import Cadeira
-from app.models.enums import LayoutBoard, StatusItem
+from app.models.course import Course
+from app.models.enums import BoardLayout, ItemStatus
 from app.models.item import Item
-from app.models.periodo import Periodo
+from app.models.item_type import ItemType
+from app.models.period import Period
 from app.models.tag import Tag
-from app.models.tipo_item import TipoItem
 
 
 @pytest.fixture()
@@ -28,146 +28,146 @@ def session():
         yield session
 
 
-def test_hierarquia_periodo_cadeira_item(session):
-    periodo = Periodo(nome="2026.2")
-    cadeira = Cadeira(nome="Matemática 3", periodo=periodo)
-    tipo_prova = TipoItem(nome="Prova")
-    item = Item(titulo="Prova de derivadas", tipo=tipo_prova, cadeira=cadeira)
+def test_period_course_item_hierarchy(session):
+    period = Period(name="2026.2")
+    course = Course(name="Calculus 3", period=period)
+    exam_type = ItemType(name="Exam")
+    item = Item(title="Derivatives exam", item_type=exam_type, course=course)
 
-    session.add_all([periodo, cadeira, tipo_prova, item])
+    session.add_all([period, course, exam_type, item])
     session.commit()
 
-    assert item.cadeira.periodo.nome == "2026.2"
-    assert cadeira.itens == [item]
+    assert item.course.period.name == "2026.2"
+    assert course.items == [item]
 
 
-def test_aninhamento_infinito_de_itens(session):
-    periodo = Periodo(nome="2026.2")
-    cadeira = Cadeira(nome="Matemática 3", periodo=periodo)
-    tipo_projeto = TipoItem(nome="Projeto")
+def test_unlimited_item_nesting(session):
+    period = Period(name="2026.2")
+    course = Course(name="Calculus 3", period=period)
+    project_type = ItemType(name="Project")
 
-    projeto = Item(titulo="Trabalho final", tipo=tipo_projeto, cadeira=cadeira)
-    etapa = Item(
-        titulo="Levantamento bibliográfico",
-        tipo=tipo_projeto,
-        cadeira=cadeira,
-        parent=projeto,
+    project = Item(title="Final paper", item_type=project_type, course=course)
+    stage = Item(
+        title="Literature review",
+        item_type=project_type,
+        course=course,
+        parent=project,
     )
-    subetapa = Item(
-        titulo="Ler artigo X", tipo=tipo_projeto, cadeira=cadeira, parent=etapa
+    substage = Item(
+        title="Read paper X", item_type=project_type, course=course, parent=stage
     )
 
-    session.add_all([periodo, cadeira, tipo_projeto, projeto, etapa, subetapa])
+    session.add_all([period, course, project_type, project, stage, substage])
     session.commit()
 
-    assert projeto.filhos == [etapa]
-    assert etapa.filhos == [subetapa]
-    assert subetapa.parent.parent is projeto
+    assert project.children == [stage]
+    assert stage.children == [substage]
+    assert substage.parent.parent is project
 
 
-def test_tags_transversais(session):
-    periodo = Periodo(nome="2026.2")
-    cadeira = Cadeira(nome="Matemática 3", periodo=periodo)
-    tipo = TipoItem(nome="Prova")
-    tag_urgente = Tag(nome="Urgente")
-    item = Item(titulo="Prova", tipo=tipo, cadeira=cadeira, tags=[tag_urgente])
+def test_cross_cutting_tags(session):
+    period = Period(name="2026.2")
+    course = Course(name="Calculus 3", period=period)
+    item_type = ItemType(name="Exam")
+    urgent_tag = Tag(name="Urgent")
+    item = Item(title="Exam", item_type=item_type, course=course, tags=[urgent_tag])
 
-    session.add_all([periodo, cadeira, tipo, tag_urgente, item])
+    session.add_all([period, course, item_type, urgent_tag, item])
     session.commit()
 
-    assert item.tags == [tag_urgente]
+    assert item.tags == [urgent_tag]
 
 
-def test_features_plugaveis_em_json(session):
-    periodo = Periodo(nome="2026.2")
-    cadeira = Cadeira(nome="Matemática 3", periodo=periodo)
-    tipo = TipoItem(nome="Prova")
+def test_pluggable_features_as_json(session):
+    period = Period(name="2026.2")
+    course = Course(name="Calculus 3", period=period)
+    item_type = ItemType(name="Exam")
     item = Item(
-        titulo="Prova",
-        tipo=tipo,
-        cadeira=cadeira,
-        features={"nota": {"obtida": 8.5, "maxima": 10, "peso": 1}},
+        title="Exam",
+        item_type=item_type,
+        course=course,
+        features={"grade": {"score": 8.5, "max_score": 10, "weight": 1}},
     )
 
-    session.add_all([periodo, cadeira, tipo, item])
+    session.add_all([period, course, item_type, item])
     session.commit()
     session.refresh(item)
 
-    assert item.features["nota"]["obtida"] == 8.5
+    assert item.features["grade"]["score"] == 8.5
 
 
-def test_board_da_cadeira_com_colunas_padrao(session):
-    periodo = Periodo(nome="2026.2")
-    cadeira = Cadeira(nome="Matemática 3", periodo=periodo)
-    board = Board(cadeira=cadeira, layout=LayoutBoard.KANBAN)
-    coluna_a_fazer = BoardColumn(board=board, nome="A fazer", ordem=0)
-    tipo = TipoItem(nome="Tarefa")
+def test_course_board_with_default_columns(session):
+    period = Period(name="2026.2")
+    course = Course(name="Calculus 3", period=period)
+    board = Board(course=course, layout=BoardLayout.KANBAN)
+    todo_column = BoardColumn(board=board, name="To do", position=0)
+    item_type = ItemType(name="Task")
     item = Item(
-        titulo="Revisar capítulo 3",
-        tipo=tipo,
-        cadeira=cadeira,
-        board_coluna=coluna_a_fazer,
+        title="Review chapter 3",
+        item_type=item_type,
+        course=course,
+        board_column=todo_column,
     )
 
-    session.add_all([periodo, cadeira, board, coluna_a_fazer, tipo, item])
+    session.add_all([period, course, board, todo_column, item_type, item])
     session.commit()
 
-    assert cadeira.board.colunas[0].nome == "A fazer"
-    assert cadeira.board.colunas[0].itens == [item]
+    assert course.board.columns[0].name == "To do"
+    assert course.board.columns[0].items == [item]
 
 
-def test_board_de_item_organiza_itens_filho(session):
-    """Ciclo Board <-> Item <-> BoardColumn: um item pode ter seu próprio board
-    para organizar os itens-filho (ex.: sprint dentro de um projeto)."""
-    periodo = Periodo(nome="2026.2")
-    cadeira = Cadeira(nome="Matemática 3", periodo=periodo)
-    tipo = TipoItem(nome="Projeto")
+def test_item_board_organizes_child_items(session):
+    """Board <-> Item <-> BoardColumn cycle: an item can have its own board to
+    organize its child items (e.g. a sprint board inside a project)."""
+    period = Period(name="2026.2")
+    course = Course(name="Calculus 3", period=period)
+    item_type = ItemType(name="Project")
 
-    projeto = Item(titulo="Trabalho final", tipo=tipo, cadeira=cadeira)
-    board_do_projeto = Board(item=projeto, layout=LayoutBoard.SPRINT)
-    coluna = BoardColumn(board=board_do_projeto, nome="Sprint 1", ordem=0)
-    etapa = Item(
-        titulo="Escrever introdução",
-        tipo=tipo,
-        cadeira=cadeira,
-        parent=projeto,
-        board_coluna=coluna,
+    project = Item(title="Final paper", item_type=item_type, course=course)
+    project_board = Board(item=project, layout=BoardLayout.SPRINT)
+    column = BoardColumn(board=project_board, name="Sprint 1", position=0)
+    stage = Item(
+        title="Write introduction",
+        item_type=item_type,
+        course=course,
+        parent=project,
+        board_column=column,
     )
 
-    session.add_all([periodo, cadeira, tipo, projeto, board_do_projeto, coluna, etapa])
+    session.add_all([period, course, item_type, project, project_board, column, stage])
     session.commit()
 
-    assert projeto.board.colunas[0].itens == [etapa]
+    assert project.board.columns[0].items == [stage]
 
 
-def test_status_item_default_e_soft_delete(session):
-    periodo = Periodo(nome="2026.2")
-    cadeira = Cadeira(nome="Matemática 3", periodo=periodo)
-    tipo = TipoItem(nome="Prova")
-    item = Item(titulo="Prova", tipo=tipo, cadeira=cadeira)
+def test_item_status_default_and_soft_delete(session):
+    period = Period(name="2026.2")
+    course = Course(name="Calculus 3", period=period)
+    item_type = ItemType(name="Exam")
+    item = Item(title="Exam", item_type=item_type, course=course)
 
-    session.add_all([periodo, cadeira, tipo, item])
+    session.add_all([period, course, item_type, item])
     session.commit()
 
-    assert item.status == StatusItem.ATIVO
+    assert item.status == ItemStatus.ACTIVE
 
-    item.status = StatusItem.LIXEIRA
+    item.status = ItemStatus.TRASH
     session.commit()
     session.refresh(item)
-    assert item.status == StatusItem.LIXEIRA
+    assert item.status == ItemStatus.TRASH
 
 
-def test_exclusao_de_cadeira_em_cascata_remove_itens(session):
-    periodo = Periodo(nome="2026.2")
-    cadeira = Cadeira(nome="Matemática 3", periodo=periodo)
-    tipo = TipoItem(nome="Prova")
-    item = Item(titulo="Prova", tipo=tipo, cadeira=cadeira)
+def test_deleting_course_cascades_to_items(session):
+    period = Period(name="2026.2")
+    course = Course(name="Calculus 3", period=period)
+    item_type = ItemType(name="Exam")
+    item = Item(title="Exam", item_type=item_type, course=course)
 
-    session.add_all([periodo, cadeira, tipo, item])
+    session.add_all([period, course, item_type, item])
     session.commit()
     item_id = item.id
 
-    session.delete(cadeira)
+    session.delete(course)
     session.commit()
 
     assert session.get(Item, item_id) is None

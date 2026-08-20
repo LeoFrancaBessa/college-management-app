@@ -1,25 +1,25 @@
 import enum
 
 
-class StatusAtivoArquivado(str, enum.Enum):
-    """Status de Período e Cadeira — não passam por lixeira (Regra pétrea 6:
-    arquivamento e exclusão são ações distintas; a exclusão desses dois níveis é
-    sempre direta, ver UC-01/UC-02)."""
+class ActiveArchivedStatus(str, enum.Enum):
+    """Status for Period and Course — never go through trash (business rule 6:
+    archiving and deletion are distinct actions; deleting these two levels is
+    always direct, see UC-01/UC-02)."""
 
-    ATIVO = "ativo"
-    ARQUIVADO = "arquivado"
-
-
-class StatusItem(str, enum.Enum):
-    """Status de Item — inclui `lixeira`, usada apenas na exclusão via IA
-    (Regra pétrea 5: exclusão via IA é sempre soft delete)."""
-
-    ATIVO = "ativo"
-    ARQUIVADO = "arquivado"
-    LIXEIRA = "lixeira"
+    ACTIVE = "active"
+    ARCHIVED = "archived"
 
 
-class LayoutBoard(str, enum.Enum):
+class ItemStatus(str, enum.Enum):
+    """Status for Item — includes `trash`, used only for AI-driven deletion
+    (business rule 5: AI deletion is always a soft delete)."""
+
+    ACTIVE = "active"
+    ARCHIVED = "archived"
+    TRASH = "trash"
+
+
+class BoardLayout(str, enum.Enum):
     KANBAN = "kanban"
     SPRINT = "sprint"
-    LISTA = "lista"
+    LIST = "list"

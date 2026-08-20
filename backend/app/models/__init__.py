@@ -1,18 +1,18 @@
 from app.models.user import User
-from app.models.tipo_item import TipoItem
+from app.models.item_type import ItemType
 from app.models.tag import Tag, item_tags
-from app.models.periodo import Periodo
-from app.models.cadeira import Cadeira
+from app.models.period import Period
+from app.models.course import Course
 from app.models.board import Board, BoardColumn
 from app.models.item import Item
 
 __all__ = [
     "User",
-    "TipoItem",
+    "ItemType",
     "Tag",
     "item_tags",
-    "Periodo",
-    "Cadeira",
+    "Period",
+    "Course",
     "Board",
     "BoardColumn",
     "Item",

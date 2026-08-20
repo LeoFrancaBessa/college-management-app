@@ -7,13 +7,13 @@ venv/
 *.db
 .pytest_cache/
 
-# Uploads locais de anexos (dev)
+# Local attachment uploads (dev)
 backend/attachments/
 
 # Env
 .env
 
-# Node (frontend, quando definido)
+# Node (frontend)
 node_modules/
 dist/
 build/
