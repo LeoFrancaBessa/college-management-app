@@ -11,3 +11,4 @@ slowapi
 apscheduler
 google-generativeai
 python-multipart
+pytest

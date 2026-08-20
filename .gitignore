@@ -5,6 +5,7 @@ __pycache__/
 venv/
 *.egg-info/
 *.db
+.pytest_cache/
 
 # Uploads locais de anexos (dev)
 backend/attachments/
