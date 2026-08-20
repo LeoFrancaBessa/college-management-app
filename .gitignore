@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+*.db
+
+# Uploads locais de anexos (dev)
+backend/attachments/
+
+# Env
+.env
+
+# Node (frontend, quando definido)
+node_modules/
+dist/
+build/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

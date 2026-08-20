@@ -1,0 +1,13 @@
+{$DOMAIN:localhost} {
+	encode gzip
+
+	# API do backend (FastAPI)
+	handle /api/* {
+		reverse_proxy backend:8000
+	}
+
+	# Frontend (build estático servido pelo container nginx)
+	handle {
+		reverse_proxy frontend:80
+	}
+}
