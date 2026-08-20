@@ -6,6 +6,7 @@ venv/
 *.egg-info/
 *.db
 .pytest_cache/
+backend/*.log
 
 # Local attachment uploads (dev)
 backend/attachments/
