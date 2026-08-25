@@ -90,7 +90,8 @@ export default function BoardView({ boardId }: Props) {
 
   const handleLayoutChange = async (layout: 'kanban' | 'sprint' | 'lista') => {
     try {
-      await updateBoard.mutateAsync({ layout } as any)
+      const apiLayout = layout === 'lista' ? 'list' : layout
+      await updateBoard.mutateAsync({ layout: apiLayout } as any)
     } catch (err: any) {
       toast(err?.detail ?? err?.message ?? 'Erro ao alterar layout', 'error')
     }
@@ -151,7 +152,8 @@ export default function BoardView({ boardId }: Props) {
     }
   }
 
-  const layout = board.layout as 'kanban' | 'sprint' | 'lista'
+  const rawLayout = board.layout as string
+  const layout: 'kanban' | 'sprint' | 'lista' = rawLayout === 'list' ? 'lista' : (rawLayout as any)
   const isLista = layout === 'lista'
 
   return (
