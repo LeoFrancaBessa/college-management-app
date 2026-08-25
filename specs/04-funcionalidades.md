@@ -90,7 +90,7 @@
   - **Prioridade:** Alta
   - **Casos de uso relacionados:** UC-05
   - **Regras de negócio relacionadas:** Regra pétrea 3
-- [ ] **RF-21** — Calcular e exibir a média da cadeira (ponderada pelo peso, entre itens com feature Nota lançada)
+- [x] **RF-21** — Calcular e exibir a média da cadeira (ponderada pelo peso, entre itens com feature Nota lançada)
   - **Prioridade:** Média
   - **Casos de uso relacionados:** UC-10
 

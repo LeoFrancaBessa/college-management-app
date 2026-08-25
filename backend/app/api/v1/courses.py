@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
-from app.schemas.course import CourseCreate, CourseRead, CourseUpdate
+from app.schemas.course import CourseAverageRead, CourseCreate, CourseRead, CourseUpdate
 from app.services import course_service
 
 router = APIRouter(
@@ -24,6 +24,12 @@ def list_courses(period_id: int | None = None, db: Session = Depends(get_db)):
 @router.get("/{course_id}", response_model=CourseRead)
 def get_course(course_id: int, db: Session = Depends(get_db)):
     return course_service.get_course(db, course_id)
+
+
+@router.get("/{course_id}/average", response_model=CourseAverageRead, summary="RF-21 — média ponderada da cadeira (UC-10)")
+def get_course_average(course_id: int, db: Session = Depends(get_db)):
+    """Média ponderada sobre Item.features.grade (apenas ACTIVE com score lançado)."""
+    return course_service.get_course_average(db, course_id)
 
 
 @router.patch("/{course_id}", response_model=CourseRead)
