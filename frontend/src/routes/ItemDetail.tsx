@@ -21,36 +21,12 @@ import { fmtDate } from '../lib/formatDate'
 import { ApiError, apiFetch } from '../api/client'
 import { useQueryClient } from '@tanstack/react-query'
 
-function SubBoardSection({ itemId, hasBoard, boardId }: { itemId: number; hasBoard: boolean; boardId?: number | null }) {
-  const qc = useQueryClient()
-  const [enabling, setEnabling] = useState(false)
-  const [error, setError] = useState('')
-  const handleEnable = async () => {
-    setError('')
-    setEnabling(true)
-    try {
-      await apiFetch(`/api/v1/items/${itemId}/board`, { method: 'POST' })
-      qc.invalidateQueries({ queryKey: ['item', itemId] })
-    } catch (e: any) {
-      setError(e?.detail ?? e?.message ?? 'Erro ao ativar board')
-    } finally {
-      setEnabling(false)
-    }
-  }
+function SubBoardSection({ hasBoard, boardId }: { hasBoard: boolean; boardId?: number | null }) {
   if (!hasBoard) {
-    return (
-      <div className="space-y-3">
-        <p className="text-sm text-gray-500">Board não ativado neste item — organize os filhos em colunas.</p>
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <Button onClick={handleEnable} disabled={enabling}>
-          {enabling ? 'Ativando...' : 'Ativar Sub-Board'}
-        </Button>
-      </div>
-    )
+    return <p className="text-sm text-gray-500">Board não ativado neste item — ative pelo toggle acima para organizar os filhos em colunas.</p>
   }
   return (
     <div className="space-y-2">
-      {error && <p className="text-sm text-red-600">{error}</p>}
       {boardId ? (
         <div className="text-sm text-gray-500">Board #{boardId} — BoardView em breve (Task 7).</div>
       ) : (
@@ -71,7 +47,7 @@ export default function ItemDetail() {
   const { data: period } = usePeriod(periodId ?? 0)
   const { data: itemTypes } = useItemTypes()
   const { data: allTags } = useTags()
-  const { data: children } = useItems(valid ? { parent_id: id } : {})
+  const { data: children } = useItems({ parent_id: id }, { enabled: valid })
   const navigate = useNavigate()
   const qc = useQueryClient()
 
@@ -351,7 +327,7 @@ export default function ItemDetail() {
           }
         }
       }}>
-        <SubBoardSection itemId={id} hasBoard={hasBoard} boardId={item.board_id ?? item.board?.id} />
+        <SubBoardSection hasBoard={hasBoard} boardId={item.board_id ?? item.board?.id} />
       </FeatureSection>
 
       <Card>

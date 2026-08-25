@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useAttachments, useUploadAttachment, useDeleteAttachment, getAttachmentDownloadUrl } from '../../api/attachments'
-import { ApiError } from '../../api/client'
+import { ApiError, BASE } from '../../api/client'
 import { Button } from '../ui/Button'
 
 const MAX_SIZE = 20 * 1024 * 1024
@@ -43,7 +43,7 @@ export function AttachmentList({ itemId }: { itemId: number }) {
 
   const handleDownload = async (id: number, filename: string) => {
     try {
-      const res = await fetch(`${getAttachmentDownloadUrl(id)}`, { credentials: 'include' })
+      const res = await fetch(`${BASE}${getAttachmentDownloadUrl(id)}`, { credentials: 'include' })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
@@ -76,7 +76,7 @@ export function AttachmentList({ itemId }: { itemId: number }) {
       ) : (
         <ul className="space-y-2">
           {attachments.map((att: any) => (
-            <li key={att.id} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg gap-2">
+            <li key={att.id} className="flex items-center justify-between py-3 px-3 bg-gray-50 rounded-lg gap-2">
               <div className="min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">{att.original_filename}</p>
                 <p className="text-xs text-gray-500">

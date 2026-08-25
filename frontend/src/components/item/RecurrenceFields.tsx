@@ -49,7 +49,7 @@ export function RecurrenceFields({ itemId, features, value }: { itemId: number; 
     }
     const rec: any = { frequency, interval: iv }
     if (frequency === 'weekly' && weekdays.length > 0) rec.weekdays = weekdays
-    if (hasUntil) rec.until = new Date(until).toISOString()
+    if (hasUntil) rec.until = `${until}T00:00:00.000Z`
     else {
       const c = Number(count)
       if (!Number.isFinite(c) || c < 1) {
