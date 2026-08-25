@@ -1,9 +1,18 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { AppShell } from './components/layout/AppShell'
+import { ToastProvider } from './components/ui/Toast'
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="*" element={<div className="p-8 text-gray-900">Init OK — wire routes next</div>} />
-    </Routes>
+    <ToastProvider>
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route path="/" element={<div>Dashboard — next</div>} />
+          <Route path="/cronograma" element={<div>Cronograma — next</div>} />
+          <Route path="/lixeira" element={<div>Lixeira — next</div>} />
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </ToastProvider>
   )
 }
