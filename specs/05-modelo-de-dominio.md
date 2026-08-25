@@ -63,22 +63,23 @@
 - **Relacionamentos:** N:N com Item
 - Lista extensível — o usuário pode criar novas tags livremente
 
-### Feature: Nota / Avaliação
+### Feature: Nota / Avaliação (RF-16 → `services/features.py:validate_grade` + `course_service.py:get_course_average`)
 
 - **Atributos:** nota obtida, nota máxima (padrão 10), peso (opcional, padrão 1)
-- **Regra:** quando ativada em itens de uma cadeira, contribui para o cálculo da média da
-  cadeira (média ponderada pelo peso, considerando apenas itens com a feature ativada e nota
-  lançada)
+- **Armazenamento:** `Item.features["grade"] = {score, max_score, weight}` (canônico); alias legado `nota: {nota_obtida/obtida, nota_max/max, peso}` é tolerado na leitura e normalizado na escrita para `grade`.
+- **Validação:** `0 <= score <= max_score`, `max_score > 0` (max 1000), `weight` numérico (<=0 normaliza para 1), `max_score` padrão 10.
+- **Regra:** quando ativada em itens ACTIVE da cadeira, contribui para `GET /courses/{id}/average` (RF-21, média ponderada `sum(score*weight)/sum(weight)`).
 
-### Feature: Checklist
+### Feature: Checklist (RF-17 → `services/features.py:validate_checklist`)
 
 - **Atributos:** lista de subitens (texto, concluído: sim/não)
-- **Nota:** não é um Item completo — não tem features ou board próprios; serve para afazeres
-  simples dentro de um item (ex.: "levar calculadora", "revisar capítulo 3")
+- **Armazenamento:** `Item.features["checklist"] = [{text, done}]` (alias `check_list`, `texto`/`concluido`/`checked` normalizados; `text` trimmed 1..500, `done` bool, max 100 itens).
+- **Nota:** não é um Item completo — não tem features ou board próprios; serve para afazeres simples dentro de um item (ex.: "levar calculadora", "revisar capítulo 3").
 
-### Feature: Anotações
+### Feature: Anotações (RF-18 → `services/features.py:validate_notes`)
 
 - **Atributos:** texto rico (markdown)
+- **Armazenamento:** `Item.features["notes"]` string markdown 0..50000 (alias `anotacoes`/`anotacao`/`notes_md` normalizados).
 
 ### Feature: Anexos
 
