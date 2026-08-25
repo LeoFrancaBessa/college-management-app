@@ -24,3 +24,4 @@ build/
 .idea/
 .DS_Store
 Thumbs.db
+.coverage
