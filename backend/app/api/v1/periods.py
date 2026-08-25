@@ -21,9 +21,11 @@ def create_period(data: PeriodCreate, db: Session = Depends(get_db)):
 def list_periods(
     status: ActiveArchivedStatus | None = Query(None, description="Filter by status (active|archived)"),
     include_archived: bool = Query(False, description="When true, returns ACTIVE + ARCHIVED"),
+    limit: int | None = Query(None, ge=1, le=100, description="Max items to return"),
+    offset: int | None = Query(None, ge=0, description="Offset for pagination"),
     db: Session = Depends(get_db),
 ):
-    return period_service.list_periods(db, status=status, include_archived=include_archived)
+    return period_service.list_periods(db, status=status, include_archived=include_archived, limit=limit, offset=offset)
 
 
 @router.get("/{period_id}", response_model=PeriodRead)

@@ -33,6 +33,8 @@ def list_items(
     status: ItemStatus | None = Query(None, description="Filter by status (active|archived|trash)"),
     include_archived: bool = Query(False, description="When true, includes ARCHIVED alongside ACTIVE"),
     include_trash: bool = Query(False, description="When true, includes TRASH (normally via GET /trash)"),
+    limit: int | None = Query(None, ge=1, le=100, description="Max items to return"),
+    offset: int | None = Query(None, ge=0, description="Offset for pagination"),
     db: Session = Depends(get_db),
 ):
     return item_service.list_items(
@@ -43,6 +45,8 @@ def list_items(
         status=status,
         include_archived=include_archived,
         include_trash=include_trash,
+        limit=limit,
+        offset=offset,
     )
 
 

@@ -59,7 +59,10 @@ def restore_item(db: Session, item_id: int) -> Item:
     if item.status != ItemStatus.TRASH:
         raise ValidationError(f"Item {item_id} is not in trash (status={item.status.value})")
     if item.deleted_at is not None:
-        age = datetime.now(timezone.utc) - item.deleted_at
+        _deleted = item.deleted_at
+        if _deleted.tzinfo is None:
+            _deleted = _deleted.replace(tzinfo=timezone.utc)
+        age = datetime.now(timezone.utc) - _deleted
         if age > timedelta(days=RETENTION_DAYS):
             raise ValidationError("Retention period expired (30 days) — item can no longer be restored")
     _restore_subtree(db, item)

@@ -24,16 +24,24 @@ def list_periods(
     *,
     status: ActiveArchivedStatus | None = None,
     include_archived: bool = False,
+    limit: int | None = None,
+    offset: int | None = None,
 ) -> list[Period]:
     """Lista períodos. Por padrão retorna só ACTIVE (Regra 6 / UC-01:
     arquivado some das listas ativas). Use `status` para filtrar um status
-    específico ou `include_archived=True` para ACTIVE+ARCHIVED."""
+    específico ou `include_archived=True` para ACTIVE+ARCHIVED.
+    `limit`/`offset` são opcionais; quando ausentes retorna tudo (compatível)."""
     query = db.query(Period)
     if status is not None:
         query = query.filter(Period.status == status)
     elif not include_archived:
         query = query.filter(Period.status == ActiveArchivedStatus.ACTIVE)
-    return query.order_by(Period.created_at.desc()).all()
+    query = query.order_by(Period.created_at.desc())
+    if limit is not None:
+        query = query.limit(limit)
+    if offset is not None:
+        query = query.offset(offset)
+    return query.all()
 
 
 def get_period(db: Session, period_id: int) -> Period:

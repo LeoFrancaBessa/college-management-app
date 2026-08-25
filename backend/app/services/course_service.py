@@ -35,10 +35,13 @@ def list_courses(
     *,
     status: ActiveArchivedStatus | None = None,
     include_archived: bool = False,
+    limit: int | None = None,
+    offset: int | None = None,
 ) -> list[Course]:
     """Lista cadeiras. Por padrão só ACTIVE (Regra 6 / UC-02).
     Use `status` para filtrar um status específico ou `include_archived=True`
-    para ACTIVE+ARCHIVED. Não retorna TRASH (curso não usa)."""
+    para ACTIVE+ARCHIVED. Não retorna TRASH (curso não usa).
+    `limit`/`offset` opcionais; sem eles retorna tudo (compatível)."""
     query = db.query(Course)
     if period_id is not None:
         query = query.filter(Course.period_id == period_id)
@@ -46,7 +49,12 @@ def list_courses(
         query = query.filter(Course.status == status)
     elif not include_archived:
         query = query.filter(Course.status == ActiveArchivedStatus.ACTIVE)
-    return query.order_by(Course.created_at.desc()).all()
+    query = query.order_by(Course.created_at.desc())
+    if limit is not None:
+        query = query.limit(limit)
+    if offset is not None:
+        query = query.offset(offset)
+    return query.all()
 
 
 def get_course(db: Session, course_id: int) -> Course:

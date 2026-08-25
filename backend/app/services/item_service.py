@@ -110,13 +110,16 @@ def list_items(
     status: ItemStatus | None = None,
     include_archived: bool = False,
     include_trash: bool = False,
+    limit: int | None = None,
+    offset: int | None = None,
 ) -> list[Item]:
     """Lista itens. Por padrão só ACTIVE (Regra 6 / UC-03); arquivados e
     lixeira (TRASH) só aparecem quando explicitamente pedidos:
     - `status=...` filtra um status específico (priority).
     - `include_archived=True` → ACTIVE + ARCHIVED.
     - `include_trash=True` → inclui TRASH (normalmente via GET /trash).
-    Combinações: ACTIVE+ARCHIVED+TRASH quando ambos include_* = True."""
+    Combinações: ACTIVE+ARCHIVED+TRASH quando ambos include_* = True.
+    `limit`/`offset` opcionais; sem eles retorna tudo (compatível)."""
     query = db.query(Item)
     if course_id is not None:
         query = query.filter(Item.course_id == course_id)
@@ -138,7 +141,12 @@ def list_items(
             query = query.filter(Item.status == ItemStatus.ACTIVE)
         else:
             query = query.filter(Item.status.in_(allowed))
-    return query.order_by(Item.created_at.desc()).all()
+    query = query.order_by(Item.created_at.desc())
+    if limit is not None:
+        query = query.limit(limit)
+    if offset is not None:
+        query = query.offset(offset)
+    return query.all()
 
 
 def get_item(db: Session, item_id: int) -> Item:

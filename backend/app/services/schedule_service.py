@@ -74,6 +74,8 @@ def list_schedule(
     course_id: int | None = None,
     from_date: datetime | None = None,
     to_date: datetime | None = None,
+    limit: int | None = None,
+    offset: int | None = None,
 ) -> list[Any]:
     """RF-30 (geral) + RF-31 (por cadeira) + RF-20 (expansão).
 
@@ -101,6 +103,10 @@ def list_schedule(
     # (mantém objetos ORM originais; compatível com callers existentes).
     has_any_recurrence = any(_has_recurrence(it) is not None for it in candidates)
     if not has_any_recurrence and from_date is None and to_date is None:
+        if limit is not None or offset is not None:
+            start = offset or 0
+            end = (start + limit) if limit is not None else None
+            return candidates[start:end]  # type: ignore[return-value]
         return candidates  # type: ignore[return-value]
 
     # Normaliza janelas naive como UTC para evitar TypeError com anchors aware
@@ -135,6 +141,10 @@ def list_schedule(
 
     # Ordenação cronológica global (ocorrências intercaladas entre itens)
     occurrences.sort(key=lambda o: (o.due_date, o.id))
+    if limit is not None or offset is not None:
+        start = offset or 0
+        end = (start + limit) if limit is not None else None
+        return occurrences[start:end]
     return occurrences
 
 

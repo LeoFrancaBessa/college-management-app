@@ -22,9 +22,11 @@ def list_courses(
     period_id: int | None = None,
     status: ActiveArchivedStatus | None = Query(None, description="Filter by status (active|archived)"),
     include_archived: bool = Query(False, description="When true, returns ACTIVE + ARCHIVED"),
+    limit: int | None = Query(None, ge=1, le=100, description="Max items to return"),
+    offset: int | None = Query(None, ge=0, description="Offset for pagination"),
     db: Session = Depends(get_db),
 ):
-    return course_service.list_courses(db, period_id=period_id, status=status, include_archived=include_archived)
+    return course_service.list_courses(db, period_id=period_id, status=status, include_archived=include_archived, limit=limit, offset=offset)
 
 
 @router.get("/{course_id}", response_model=CourseRead)
