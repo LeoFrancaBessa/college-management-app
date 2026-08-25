@@ -1,5 +1,8 @@
+from pathlib import Path
+
 from sqlalchemy.orm import Session
 
+from app.models.attachment import Attachment
 from app.models.board import Board, BoardColumn
 from app.models.course import Course
 from app.models.enums import ItemStatus
@@ -130,11 +133,35 @@ def archive_item(db: Session, item: Item) -> Item:
     return item
 
 
+def _collect_item_subtree_ids(db: Session, root_id: int) -> list[int]:
+    ids = [root_id]
+    queue = [root_id]
+    while queue:
+        cur = queue.pop()
+        for (cid,) in db.query(Item.id).filter(Item.parent_id == cur).all():
+            ids.append(cid)
+            queue.append(cid)
+    return ids
+
+
 def delete_item(db: Session, item: Item) -> None:
     # Manual deletion is always direct (never trash) — business rule 5 only
     # applies to AI-driven deletion. Cascades to child items and its own board.
+    # Collect attachment file paths before DB cascade deletes the rows (via
+    # explicit query — does not rely on relationships being loaded).
+    paths: list[str] = []
+    try:
+        subtree_ids = _collect_item_subtree_ids(db, item.id)
+        paths = [r[0] for r in db.query(Attachment.path).filter(Attachment.item_id.in_(subtree_ids)).all()]
+    except Exception:
+        pass
     db.delete(item)
     db.commit()
+    for p in paths:
+        try:
+            Path(p).unlink(missing_ok=True)
+        except Exception:
+            pass
 
 
 def _is_within_subtree(root: Item, candidate_id: int) -> bool:

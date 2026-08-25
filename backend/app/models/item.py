@@ -68,3 +68,8 @@ class Item(Base):
         back_populates="item", cascade="all, delete-orphan"
     )
     tags: Mapped[list["Tag"]] = relationship(secondary=item_tags)
+    attachments: Mapped[list["Attachment"]] = relationship(
+        back_populates="item",
+        cascade="all, delete-orphan",
+        order_by="Attachment.created_at",
+    )

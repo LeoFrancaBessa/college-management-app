@@ -1,5 +1,8 @@
+from pathlib import Path
+
 from sqlalchemy.orm import Session
 
+from app.models.attachment import Attachment
 from app.models.course import Course
 from app.models.enums import ActiveArchivedStatus, ItemStatus
 from app.models.item import Item
@@ -57,9 +60,19 @@ def archive_course(db: Session, course: Course) -> Course:
 
 def delete_course(db: Session, course: Course) -> None:
     # Business rule 6: deletion is direct (no trash) and cascades to its Items
-    # and Board.
+    # and Board. Collect attachment file paths before DB cascade deletes rows.
+    paths: list[str] = []
+    try:
+        paths = [row[0] for row in db.query(Attachment.path).join(Item, Attachment.item_id == Item.id).filter(Item.course_id == course.id).all()]
+    except Exception:
+        pass
     db.delete(course)
     db.commit()
+    for p in paths:
+        try:
+            Path(p).unlink(missing_ok=True)
+        except Exception:
+            pass
 
 
 # ---------- RF-21 / UC-10 — média ponderada ----------

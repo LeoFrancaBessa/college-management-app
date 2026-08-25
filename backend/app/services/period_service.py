@@ -1,6 +1,11 @@
+from pathlib import Path
+
 from sqlalchemy.orm import Session
 
+from app.models.attachment import Attachment
+from app.models.course import Course
 from app.models.enums import ActiveArchivedStatus
+from app.models.item import Item
 from app.models.period import Period
 from app.schemas.period import PeriodCreate, PeriodUpdate
 from app.services.errors import NotFoundError
@@ -43,5 +48,24 @@ def archive_period(db: Session, period: Period) -> Period:
 def delete_period(db: Session, period: Period) -> None:
     # Business rule 6: deleting a Period is direct (no trash) and cascades to
     # its Courses and Items (see the cascade="all, delete-orphan" relationships).
+    # Collect attachment paths before cascade deletes the rows.
+    paths: list[str] = []
+    try:
+        # Use a direct query — more reliable than traversing unloaded relationships
+        paths = [
+            row[0]
+            for row in db.query(Attachment.path)
+            .join(Item, Attachment.item_id == Item.id)
+            .join(Course, Item.course_id == Course.id)
+            .filter(Course.period_id == period.id)
+            .all()
+        ]
+    except Exception:
+        pass
     db.delete(period)
     db.commit()
+    for p in paths:
+        try:
+            Path(p).unlink(missing_ok=True)
+        except Exception:
+            pass

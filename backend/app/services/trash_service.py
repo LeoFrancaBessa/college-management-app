@@ -10,8 +10,11 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timedelta, timezone
 
+from pathlib import Path
+
 from sqlalchemy.orm import Session, joinedload
 
+from app.models.attachment import Attachment
 from app.models.enums import ItemStatus
 from app.models.item import Item
 from app.services.errors import NotFoundError, ValidationError
@@ -66,6 +69,19 @@ def restore_item(db: Session, item_id: int) -> Item:
     return item
 
 
+def _collect_subtree_ids(db: Session, root_id: int) -> list[int]:
+    """Collect all item ids in the subtree rooted at root_id (inclusive)."""
+    ids = [root_id]
+    queue = [root_id]
+    while queue:
+        cur = queue.pop()
+        children = db.query(Item.id).filter(Item.parent_id == cur).all()
+        for (cid,) in children:
+            ids.append(cid)
+            queue.append(cid)
+    return ids
+
+
 def expire_trash(db: Session, *, retention_days: int = RETENTION_DAYS, now: datetime | None = None) -> int:
     """RF-39 — hard delete de itens expirados da lixeira (> retention_days).
 
@@ -82,6 +98,15 @@ def expire_trash(db: Session, *, retention_days: int = RETENTION_DAYS, now: date
         .filter(Item.deleted_at <= cutoff)
         .all()
     )
+    # Collect attachment file paths before cascade deletes remove metadata
+    paths: list[str] = []
+    for item in expired:
+        try:
+            subtree_ids = _collect_subtree_ids(db, item.id)
+            rows = db.query(Attachment.path).filter(Attachment.item_id.in_(subtree_ids)).all()
+            paths.extend(r[0] for r in rows)
+        except Exception:
+            pass
     count = 0
     for item in expired:
         log.info("Trash expire (hard delete) item %s deleted_at=%s", item.id, item.deleted_at)
@@ -89,4 +114,9 @@ def expire_trash(db: Session, *, retention_days: int = RETENTION_DAYS, now: date
         count += 1
     if count:
         db.commit()
+        for p in paths:
+            try:
+                Path(p).unlink(missing_ok=True)
+            except Exception:
+                pass
     return count

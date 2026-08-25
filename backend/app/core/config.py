@@ -20,5 +20,9 @@ class Settings(BaseSettings):
     # AI provider (Google Gemini — see docs/architecture.md)
     GEMINI_API_KEY: str = ""
 
+    # RF-19 — attachments (volume attachments:/app/attachments in docker-compose)
+    ATTACHMENTS_DIR: str = "/app/attachments"
+    MAX_ATTACHMENT_SIZE: int = 20 * 1024 * 1024  # 20 MB per file
+
 
 settings = Settings()

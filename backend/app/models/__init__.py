@@ -5,6 +5,7 @@ from app.models.period import Period
 from app.models.course import Course
 from app.models.board import Board, BoardColumn
 from app.models.item import Item
+from app.models.attachment import Attachment
 
 __all__ = [
     "User",
@@ -16,4 +17,5 @@ __all__ = [
     "Board",
     "BoardColumn",
     "Item",
+    "Attachment",
 ]

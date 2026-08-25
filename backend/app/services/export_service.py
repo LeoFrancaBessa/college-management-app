@@ -6,6 +6,7 @@ from datetime import date, datetime, timezone
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.models.attachment import Attachment
 from app.models.board import Board, BoardColumn
 from app.models.course import Course
 from app.models.enums import ActiveArchivedStatus, BoardLayout, ItemStatus
@@ -68,6 +69,16 @@ ITEM_FIELDS = [
     "updated_at",
     "deleted_at",
 ]
+ATTACHMENT_FIELDS = [
+    "id",
+    "item_id",
+    "original_filename",
+    "stored_filename",
+    "content_type",
+    "size",
+    "path",
+    "created_at",
+]
 
 
 def _parse_date(value) -> date | None:
@@ -99,6 +110,7 @@ def build_export(db: Session) -> dict:
     boards = db.query(Board).order_by(Board.id).all()
     board_columns = db.query(BoardColumn).order_by(BoardColumn.id).all()
     items = db.query(Item).order_by(Item.id).all()
+    attachments = db.query(Attachment).order_by(Attachment.id).all()
     rows = db.execute(text("SELECT item_id, tag_id FROM item_tags ORDER BY item_id, tag_id")).mappings().all()
     item_tags_list = [dict(r) for r in rows]
     return {
@@ -111,6 +123,7 @@ def build_export(db: Session) -> dict:
         "boards": [_row_to_dict(b, BOARD_FIELDS) for b in boards],
         "board_columns": [_row_to_dict(bc, BOARD_COLUMN_FIELDS) for bc in board_columns],
         "items": [_row_to_dict(i, ITEM_FIELDS) for i in items],
+        "attachments": [_row_to_dict(a, ATTACHMENT_FIELDS) for a in attachments],
         "item_tags": item_tags_list,
     }
 
@@ -127,6 +140,7 @@ def _reset_sequences(db: Session) -> None:
         ("boards", "id"),
         ("board_columns", "id"),
         ("items", "id"),
+        ("attachments", "id"),
         ("users", "id"),
     ]
     for table, col in seq_targets:
@@ -151,6 +165,7 @@ def import_data(db: Session, payload: dict) -> dict[str, int]:
     boards_data: list[dict] = payload.get("boards") or []
     board_columns_data: list[dict] = payload.get("board_columns") or []
     items_data: list[dict] = payload.get("items") or []
+    attachments_data: list[dict] = payload.get("attachments") or []
     item_tags_data: list[dict] = payload.get("item_tags") or []
     for name, lst in [
         ("periods", periods_data),
@@ -160,12 +175,14 @@ def import_data(db: Session, payload: dict) -> dict[str, int]:
         ("boards", boards_data),
         ("board_columns", board_columns_data),
         ("items", items_data),
+        ("attachments", attachments_data),
         ("item_tags", item_tags_data),
     ]:
         if not isinstance(lst, list):
             raise ValidationError(f"campo '{name}' deve ser uma lista")
     try:
         db.execute(text("DELETE FROM item_tags"))
+        db.query(Attachment).delete()
         db.query(Item).delete()
         db.query(BoardColumn).delete()
         db.query(Board).delete()
@@ -250,6 +267,23 @@ def import_data(db: Session, payload: dict) -> dict[str, int]:
                     if bcid is not None:
                         item.board_column_id = bcid
         db.flush()
+        for row in attachments_data:
+            try:
+                db.add(
+                    Attachment(
+                        id=row["id"],
+                        item_id=row["item_id"],
+                        original_filename=row["original_filename"],
+                        stored_filename=row["stored_filename"],
+                        content_type=row.get("content_type") or "application/octet-stream",
+                        size=int(row.get("size") or 0),
+                        path=row["path"],
+                        created_at=_parse_dt(row.get("created_at")) or datetime.now(timezone.utc),
+                    )
+                )
+            except Exception as exc:
+                raise ValidationError(f"attachment invalido {row.get('id')}: {exc}") from exc
+        db.flush()
         for row in item_tags_data:
             db.execute(item_tags.insert().values(item_id=row["item_id"], tag_id=row["tag_id"]))
         db.flush()
@@ -269,5 +303,6 @@ def import_data(db: Session, payload: dict) -> dict[str, int]:
         "boards": len(boards_data),
         "board_columns": len(board_columns_data),
         "items": len(items_data),
+        "attachments": len(attachments_data),
         "item_tags": len(item_tags_data),
     }

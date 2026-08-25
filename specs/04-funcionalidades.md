@@ -82,7 +82,7 @@
   - **Prioridade:** Média
   - **Casos de uso relacionados:** UC-05
   - **Regras de negócio relacionadas:** Regra pétrea 3
-- [ ] **RF-19** — Ativar/desativar feature **Anexos** em um item (upload de arquivos/imagens)
+- [x] **RF-19** — Ativar/desativar feature **Anexos** em um item (upload de arquivos/imagens)
   - **Prioridade:** Média
   - **Casos de uso relacionados:** UC-05
   - **Regras de negócio relacionadas:** Regra pétrea 3
