@@ -1,11 +1,96 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { usePeriods, useCreatePeriod } from '../api/periods'
 import { useCourses } from '../api/courses'
+import { useHomepage } from '../api/schedule'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
-import { SkeletonList } from '../components/ui/Skeleton'
+import { Skeleton, SkeletonList } from '../components/ui/Skeleton'
 import { EmptyState } from '../components/ui/EmptyState'
+import { fmtDate } from '../lib/formatDate'
+
+function HomepageSection() {
+  const { data: homepage, isLoading, error } = useHomepage()
+  const todayISO = useMemo(() => new Date().toISOString().slice(0, 10), [])
+  const hoje = useMemo(() => (homepage ?? []).filter((it) => (it.due_date ?? '').slice(0, 10) === todayISO), [homepage, todayISO])
+  const proximos = useMemo(() => (homepage ?? []).filter((it) => (it.due_date ?? '').slice(0, 10) !== todayISO), [homepage, todayISO])
+
+  if (isLoading) {
+    return (
+      <Card>
+        <h2 className="font-semibold text-gray-900">Hoje / Próximos 7 dias</h2>
+        <div className="mt-3 space-y-2">
+          <Skeleton className="h-4 w-1/3" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+      </Card>
+    )
+  }
+  if (error) {
+    return (
+      <Card>
+        <h2 className="font-semibold text-gray-900">Hoje / Próximos 7 dias</h2>
+        <p className="text-sm text-red-600 mt-2">{(error as any)?.detail ?? (error as Error).message}</p>
+      </Card>
+    )
+  }
+  if (!homepage?.length) {
+    return (
+      <Card>
+        <h2 className="font-semibold text-gray-900">Hoje / Próximos 7 dias</h2>
+        <p className="text-sm text-gray-500 mt-1">Nenhum item nos próximos 7 dias.</p>
+        <Link to="/cronograma" className="inline-flex mt-3 text-sm text-primary hover:underline min-h-[44px] items-center">Ver cronograma</Link>
+      </Card>
+    )
+  }
+  return (
+    <Card>
+      <div className="flex items-center justify-between">
+        <h2 className="font-semibold text-gray-900">Hoje / Próximos 7 dias</h2>
+        <Link to="/cronograma" className="text-sm text-primary hover:underline min-h-[44px] flex items-center px-2">Ver cronograma</Link>
+      </div>
+      <div className="mt-4 space-y-4">
+        <section>
+          <h3 className="text-sm font-semibold text-gray-900">Hoje</h3>
+          {hoje.length === 0 ? (
+            <p className="text-sm text-gray-500 mt-1">Nenhum item para hoje.</p>
+          ) : (
+            <ul className="mt-2 space-y-2">
+              {hoje.map((it) => (
+                <li key={`${it.id}-${it.due_date}`} className="flex items-center justify-between gap-2 py-2 px-3 bg-gray-50 rounded-lg">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{it.title}</p>
+                    <p className="text-xs text-gray-500">{fmtDate(it.due_date)} {it.item_type?.name ? `· ${it.item_type.name}` : ''}</p>
+                  </div>
+                  <Link to={`/itens/${it.id}`} className="text-xs text-primary hover:underline min-h-[44px] flex items-center px-2 shrink-0">ver</Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+        <section>
+          <h3 className="text-sm font-semibold text-gray-900">Próximos 7 dias</h3>
+          {proximos.length === 0 ? (
+            <p className="text-sm text-gray-500 mt-1">Nenhum item nos próximos 7 dias.</p>
+          ) : (
+            <ul className="mt-2 space-y-2">
+              {proximos.map((it) => (
+                <li key={`${it.id}-${it.due_date}`} className="flex items-center justify-between gap-2 py-2 px-3 bg-gray-50 rounded-lg">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{it.title}</p>
+                    <p className="text-xs text-gray-500">{fmtDate(it.due_date)} {it.item_type?.name ? `· ${it.item_type.name}` : ''}</p>
+                  </div>
+                  <Link to={`/itens/${it.id}`} className="text-xs text-primary hover:underline min-h-[44px] flex items-center px-2 shrink-0">ver</Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
+    </Card>
+  )
+}
 
 export default function Dashboard() {
   const { data: periods, isLoading: lp } = usePeriods()
@@ -38,11 +123,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Homepage placeholder — Task 7 will replace with useHomepage */}
-      <Card>
-        <h2 className="font-semibold text-gray-900">Hoje / Próximos 7 dias</h2>
-        <p className="text-sm text-gray-500 mt-1">Em breve — cronograma resumido via /api/v1/schedule/homepage</p>
-      </Card>
+      <HomepageSection />
 
       {/* Periods section */}
       <section>

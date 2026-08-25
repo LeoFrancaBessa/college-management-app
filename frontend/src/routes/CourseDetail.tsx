@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useParams, useSearchParams, Link } from 'react-router-dom'
+import { useState, lazy, Suspense } from 'react'
+import { useParams, useSearchParams, Link, useNavigate } from 'react-router-dom'
 import { Tabs } from '../components/ui/Tabs'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
@@ -10,8 +10,35 @@ import { Badge } from '../components/ui/Badge'
 import { useCourse } from '../api/courses'
 import { useItems, useCreateItem, useUpdateItem, useArchiveItem, useDeleteItem, useMoveItem, useSetBoardColumn } from '../api/items'
 import { useItemTypes } from '../api/itemTypes'
+import { useSchedule } from '../api/schedule'
 import { fmtDate } from '../lib/formatDate'
 import { ApiError } from '../api/client'
+
+const BoardView = lazy(() => import('../components/board/BoardView'))
+const ScheduleCalendar = lazy(() => import('../components/schedule/ScheduleCalendar'))
+
+function CronogramaTab({ courseId }: { courseId: number }) {
+  const navigate = useNavigate()
+  const { data, isLoading, error } = useSchedule({ course_id: courseId })
+  if (isLoading) return <Skeleton className="h-96 w-full" />
+  if (error) return <EmptyState title="Erro ao carregar cronograma" description={(error as any)?.detail ?? (error as Error).message} />
+  const events = (data ?? []).map((item) => ({ id: String(item.id), title: item.title, start: item.due_date }))
+  if (!events.length) return <Card><EmptyState title="Nenhum item no cronograma" description="Itens com data de entrega desta cadeira aparecerão aqui." /></Card>
+  return (
+    <Card>
+      <ScheduleCalendar events={events} onEventClick={(id) => navigate(`/itens/${id}`)} onDateClick={() => {}} />
+    </Card>
+  )
+}
+
+function BoardTab({ courseId }: { courseId: number }) {
+  const { data: course, isLoading, error } = useCourse(courseId)
+  if (isLoading) return <Skeleton className="h-40 w-full" />
+  if (error) return <EmptyState title="Erro ao carregar cadeira" description={(error as any)?.detail ?? (error as Error).message} />
+  if (!course) return <EmptyState title="Cadeira não encontrada" />
+  if (!course.board_id) return <EmptyState title="Board não configurado" description="Esta cadeira ainda não possui board." />
+  return <BoardView boardId={course.board_id} />
+}
 
 function ChildrenRow({ parentId }: { parentId: number }) {
   const { data: children, isLoading } = useItems({ parent_id: parentId })
@@ -79,7 +106,6 @@ function ItemRow({ item, allItems }: { item: import('../api/types').Item; allIte
     const cid = boardColDraft.trim() === '' ? null : Number(boardColDraft)
     if (boardColDraft.trim() !== '' && (cid == null || Number.isNaN(cid))) { setBoardColError('ID inválido'); return }
     try {
-      // PUT /board-column with {board_column_id}; passing null clears — but API requires number per brief; allow clearing via null cast
       await setCol.mutateAsync({ board_column_id: cid } as any)
       setBoardColError('')
     } catch (e: any) {
@@ -95,7 +121,6 @@ function ItemRow({ item, allItems }: { item: import('../api/types').Item; allIte
     try { await del.mutateAsync(item.id); setConfirmDelete(false) } catch { /* handled */ }
   }
 
-  // candidates for "mover para..." — all other items except self
   const moveCandidates = allItems.filter((x) => x.id !== item.id)
 
   return (
@@ -120,7 +145,6 @@ function ItemRow({ item, allItems }: { item: import('../api/types').Item; allIte
           <button onClick={() => setMenuOpen((v) => !v)} aria-label="menu" className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50">•••</button>
           {menuOpen && (
             <div className="absolute right-0 mt-1 w-64 bg-white border border-gray-200 rounded-xl shadow-lg z-10 p-2 space-y-1">
-              {/* edit date inline */}
               {!editDateOpen ? (
                 <button onClick={() => { setEditDateOpen(true); setDateDraft(item.due_date ? item.due_date.slice(0,10) : '') }} className="w-full text-left text-sm px-3 py-2 min-h-[44px] hover:bg-gray-50 rounded-lg">Editar data</button>
               ) : (
@@ -132,7 +156,6 @@ function ItemRow({ item, allItems }: { item: import('../api/types').Item; allIte
                   </div>
                 </div>
               )}
-              {/* move column via useSetBoardColumn */}
               <div className="px-2 py-1 space-y-1">
                 <p className="text-xs font-medium text-gray-700">Mover coluna (ID)</p>
                 <div className="flex gap-2">
@@ -141,7 +164,6 @@ function ItemRow({ item, allItems }: { item: import('../api/types').Item; allIte
                 </div>
                 {boardColError && <p className="text-xs text-red-600">{boardColError}</p>}
               </div>
-              {/* mover para... parent select */}
               {!moveOpen ? (
                 <button onClick={() => setMoveOpen(true)} className="w-full text-left text-sm px-3 py-2 min-h-[44px] hover:bg-gray-50 rounded-lg">Mover para...</button>
               ) : (
@@ -243,7 +265,7 @@ function ListaTab({ courseId }: { courseId: number }) {
 export default function CourseDetail(){
   const {courseId}=useParams(); const [sp,setSp]=useSearchParams(); const tab=sp.get('tab')??'lista'
   const id = Number(courseId)
-  const { data: course, isLoading: lc } = useCourse(Number.isFinite(id) ? id : 0)
+  const { data: course, isLoading: lc } = useCourse(Number.isFinite(id) && id>0 ? id : 0)
   return <div className="space-y-4">
     <div>
       {lc ? <Skeleton className="h-6 w-40" /> : course ? (
@@ -256,7 +278,15 @@ export default function CourseDetail(){
     </div>
     <Tabs value={tab} onValueChange={v=> setSp({tab:v})} tabs={[{value:'lista',label:'Lista'},{value:'board',label:'Board'},{value:'cronograma',label:'Cronograma'}]} />
     {tab==='lista' && (Number.isFinite(id) && id>0 ? <ListaTab courseId={id} /> : <EmptyState title="Cadeira não encontrada" />)}
-    {tab==='board' && <div className="py-4 text-sm text-gray-500">Board — lazy next</div>}
-    {tab==='cronograma' && <div className="py-4 text-sm text-gray-500">Cronograma — lazy next</div>}
+    {tab==='board' && (Number.isFinite(id) && id>0 ? (
+      <Suspense fallback={<Skeleton className="h-40 w-full" />}>
+        <BoardTab courseId={id} />
+      </Suspense>
+    ) : <EmptyState title="Cadeira não encontrada" />)}
+    {tab==='cronograma' && (Number.isFinite(id) && id>0 ? (
+      <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+        <CronogramaTab courseId={id} />
+      </Suspense>
+    ) : <EmptyState title="Cadeira não encontrada" />)}
   </div>
 }

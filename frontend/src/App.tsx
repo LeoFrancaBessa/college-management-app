@@ -7,6 +7,7 @@ import Dashboard from './routes/Dashboard'
 import PeriodDetail from './routes/PeriodDetail'
 import CourseDetail from './routes/CourseDetail'
 import ItemDetail from './routes/ItemDetail'
+import SchedulePage from './routes/SchedulePage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isLoading, error } = useMe()
@@ -31,7 +32,7 @@ export default function App() {
           <Route path="/periodos/:periodId" element={<PeriodDetail />} />
           <Route path="/cadeiras/:courseId" element={<CourseDetail />} />
           <Route path="/itens/:itemId" element={<ItemDetail />} />
-          <Route path="/cronograma" element={<div>Cronograma — next</div>} />
+          <Route path="/cronograma" element={<SchedulePage />} />
           <Route path="/lixeira" element={<div>Lixeira — next</div>} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
