@@ -3,6 +3,9 @@ import { AppShell } from './components/layout/AppShell'
 import { ToastProvider } from './components/ui/Toast'
 import { useMe } from './api/auth'
 import Login from './routes/Login'
+import Dashboard from './routes/Dashboard'
+import PeriodDetail from './routes/PeriodDetail'
+import CourseDetail from './routes/CourseDetail'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isLoading, error } = useMe()
@@ -23,7 +26,9 @@ export default function App() {
             </RequireAuth>
           }
         >
-          <Route path="/" element={<div>Dashboard — next</div>} />
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/periodos/:periodId" element={<PeriodDetail />} />
+          <Route path="/cadeiras/:courseId" element={<CourseDetail />} />
           <Route path="/cronograma" element={<div>Cronograma — next</div>} />
           <Route path="/lixeira" element={<div>Lixeira — next</div>} />
         </Route>
