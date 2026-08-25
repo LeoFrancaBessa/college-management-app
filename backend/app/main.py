@@ -1,12 +1,51 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from app.api.v1.router import api_router
 from app.core.config import settings
+from app.core.limiter import limiter
 from app.services.errors import ConflictError, NotFoundError, ValidationError
 
-app = FastAPI(title=settings.PROJECT_NAME)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # APScheduler: RF-39 expira lixeira após 30 dias. Não inicia em testes.
+    import sys
+
+    if "pytest" not in sys.modules and settings.ENVIRONMENT != "testing":
+        try:
+            from app.core.scheduler import start_scheduler
+
+            start_scheduler()
+        except Exception:
+            import logging
+
+            logging.getLogger(__name__).exception("Falha ao iniciar scheduler")
+    yield
+    try:
+        from app.core.scheduler import stop_scheduler
+
+        stop_scheduler()
+    except Exception:
+        pass
+
+
+app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
+app.state.limiter = limiter  # slowapi reads from app.state
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
+
+# slowapi rate limit handler (only active if slowapi installed)
+try:
+    from slowapi.errors import RateLimitExceeded  # type: ignore
+    from slowapi import _rate_limit_exceeded_handler  # type: ignore
+
+    @app.exception_handler(RateLimitExceeded)
+    async def _rate_limit_handler(request: Request, exc: RateLimitExceeded):  # type: ignore
+        return _rate_limit_exceeded_handler(request, exc)
+except Exception:
+    pass
 
 
 @app.exception_handler(NotFoundError)
