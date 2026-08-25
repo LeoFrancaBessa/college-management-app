@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
+from app.models.enums import ItemStatus
 from app.schemas.board import BoardRead
 from app.schemas.item import (
     ItemBoardColumnUpdate,
@@ -29,10 +30,19 @@ def list_items(
     course_id: int | None = None,
     parent_id: int | None = None,
     top_level_only: bool = False,
+    status: ItemStatus | None = Query(None, description="Filter by status (active|archived|trash)"),
+    include_archived: bool = Query(False, description="When true, includes ARCHIVED alongside ACTIVE"),
+    include_trash: bool = Query(False, description="When true, includes TRASH (normally via GET /trash)"),
     db: Session = Depends(get_db),
 ):
     return item_service.list_items(
-        db, course_id=course_id, parent_id=parent_id, top_level_only=top_level_only
+        db,
+        course_id=course_id,
+        parent_id=parent_id,
+        top_level_only=top_level_only,
+        status=status,
+        include_archived=include_archived,
+        include_trash=include_trash,
     )
 
 

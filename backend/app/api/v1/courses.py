@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
+from app.models.enums import ActiveArchivedStatus
 from app.schemas.course import CourseAverageRead, CourseCreate, CourseRead, CourseUpdate
 from app.services import course_service
 
@@ -17,8 +18,13 @@ def create_course(data: CourseCreate, db: Session = Depends(get_db)):
 
 
 @router.get("", response_model=list[CourseRead])
-def list_courses(period_id: int | None = None, db: Session = Depends(get_db)):
-    return course_service.list_courses(db, period_id=period_id)
+def list_courses(
+    period_id: int | None = None,
+    status: ActiveArchivedStatus | None = Query(None, description="Filter by status (active|archived)"),
+    include_archived: bool = Query(False, description="When true, returns ACTIVE + ARCHIVED"),
+    db: Session = Depends(get_db),
+):
+    return course_service.list_courses(db, period_id=period_id, status=status, include_archived=include_archived)
 
 
 @router.get("/{course_id}", response_model=CourseRead)

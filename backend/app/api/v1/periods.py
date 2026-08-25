@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
+from app.models.enums import ActiveArchivedStatus
 from app.schemas.period import PeriodCreate, PeriodRead, PeriodUpdate
 from app.services import period_service
 
@@ -17,8 +18,12 @@ def create_period(data: PeriodCreate, db: Session = Depends(get_db)):
 
 
 @router.get("", response_model=list[PeriodRead])
-def list_periods(db: Session = Depends(get_db)):
-    return period_service.list_periods(db)
+def list_periods(
+    status: ActiveArchivedStatus | None = Query(None, description="Filter by status (active|archived)"),
+    include_archived: bool = Query(False, description="When true, returns ACTIVE + ARCHIVED"),
+    db: Session = Depends(get_db),
+):
+    return period_service.list_periods(db, status=status, include_archived=include_archived)
 
 
 @router.get("/{period_id}", response_model=PeriodRead)

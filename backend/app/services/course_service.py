@@ -29,10 +29,23 @@ def create_course(db: Session, data: CourseCreate) -> Course:
     return course
 
 
-def list_courses(db: Session, period_id: int | None = None) -> list[Course]:
+def list_courses(
+    db: Session,
+    period_id: int | None = None,
+    *,
+    status: ActiveArchivedStatus | None = None,
+    include_archived: bool = False,
+) -> list[Course]:
+    """Lista cadeiras. Por padrão só ACTIVE (Regra 6 / UC-02).
+    Use `status` para filtrar um status específico ou `include_archived=True`
+    para ACTIVE+ARCHIVED. Não retorna TRASH (curso não usa)."""
     query = db.query(Course)
     if period_id is not None:
         query = query.filter(Course.period_id == period_id)
+    if status is not None:
+        query = query.filter(Course.status == status)
+    elif not include_archived:
+        query = query.filter(Course.status == ActiveArchivedStatus.ACTIVE)
     return query.order_by(Course.created_at.desc()).all()
 
 

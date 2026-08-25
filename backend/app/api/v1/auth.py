@@ -20,10 +20,15 @@ from app.services import auth_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+# Em produção (ENVIRONMENT=production) usa Secure + SameSite=Strict
+# conforme docs/architecture.md:31 (Caddy/HTTPS, mesma origem).
+# Em dev mantém Lax + Secure=False para permitir Vite 5173 -> 8000 via
+# CORS com allow_credentials e testes sem HTTPS.
+_IS_PROD = settings.ENVIRONMENT.lower() in ("production", "prod")
 COOKIE_KWARGS = dict(
     httponly=True,
-    secure=False,  # True em produção via Caddy/HTTPS; False para dev/local
-    samesite="lax",
+    secure=_IS_PROD,
+    samesite="strict" if _IS_PROD else "lax",
     path="/",
     max_age=settings.JWT_EXPIRE_MINUTES * 60,
 )

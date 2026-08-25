@@ -19,8 +19,21 @@ def create_period(db: Session, data: PeriodCreate) -> Period:
     return period
 
 
-def list_periods(db: Session) -> list[Period]:
-    return db.query(Period).order_by(Period.created_at.desc()).all()
+def list_periods(
+    db: Session,
+    *,
+    status: ActiveArchivedStatus | None = None,
+    include_archived: bool = False,
+) -> list[Period]:
+    """Lista períodos. Por padrão retorna só ACTIVE (Regra 6 / UC-01:
+    arquivado some das listas ativas). Use `status` para filtrar um status
+    específico ou `include_archived=True` para ACTIVE+ARCHIVED."""
+    query = db.query(Period)
+    if status is not None:
+        query = query.filter(Period.status == status)
+    elif not include_archived:
+        query = query.filter(Period.status == ActiveArchivedStatus.ACTIVE)
+    return query.order_by(Period.created_at.desc()).all()
 
 
 def get_period(db: Session, period_id: int) -> Period:

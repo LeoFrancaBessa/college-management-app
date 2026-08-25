@@ -103,7 +103,17 @@ def list_items(
     course_id: int | None = None,
     parent_id: int | None = None,
     top_level_only: bool = False,
+    *,
+    status: ItemStatus | None = None,
+    include_archived: bool = False,
+    include_trash: bool = False,
 ) -> list[Item]:
+    """Lista itens. Por padrão só ACTIVE (Regra 6 / UC-03); arquivados e
+    lixeira (TRASH) só aparecem quando explicitamente pedidos:
+    - `status=...` filtra um status específico (priority).
+    - `include_archived=True` → ACTIVE + ARCHIVED.
+    - `include_trash=True` → inclui TRASH (normalmente via GET /trash).
+    Combinações: ACTIVE+ARCHIVED+TRASH quando ambos include_* = True."""
     query = db.query(Item)
     if course_id is not None:
         query = query.filter(Item.course_id == course_id)
@@ -111,6 +121,20 @@ def list_items(
         query = query.filter(Item.parent_id.is_(None))
     elif parent_id is not None:
         query = query.filter(Item.parent_id == parent_id)
+    if status is not None:
+        query = query.filter(Item.status == status)
+    else:
+        allowed = [ItemStatus.ACTIVE]
+        if include_archived:
+            allowed.append(ItemStatus.ARCHIVED)
+        if include_trash:
+            allowed.append(ItemStatus.TRASH)
+        # Default (len==1, só ACTIVE): filtra por ACTIVE. Quando include_*
+        # estendem allowed, usa IN(...).  `allowed` nunca vazio (default).
+        if len(allowed) == 1:
+            query = query.filter(Item.status == ItemStatus.ACTIVE)
+        else:
+            query = query.filter(Item.status.in_(allowed))
     return query.order_by(Item.created_at.desc()).all()
 
 
