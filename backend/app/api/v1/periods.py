@@ -1,11 +1,14 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.schemas.period import PeriodCreate, PeriodRead, PeriodUpdate
 from app.services import period_service
 
-router = APIRouter(prefix="/periods", tags=["periods"])
+router = APIRouter(
+    prefix="/periods", tags=["periods"], dependencies=[Depends(get_current_user)]
+)
 
 
 @router.post("", response_model=PeriodRead, status_code=201)

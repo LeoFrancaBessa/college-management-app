@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.schemas.board import (
     BoardColumnCreate,
@@ -11,7 +12,9 @@ from app.schemas.board import (
 )
 from app.services import board_service
 
-router = APIRouter(prefix="/boards", tags=["boards"])
+router = APIRouter(
+    prefix="/boards", tags=["boards"], dependencies=[Depends(get_current_user)]
+)
 
 
 @router.get("/{board_id}", response_model=BoardRead)

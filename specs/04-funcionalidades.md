@@ -173,6 +173,6 @@
 
 ## Módulo: Backup e Exportação
 
-- [ ] **RF-40** — Exportar todos os dados do usuário (Períodos, Cadeiras, Itens, features, tags, boards) em um formato portável (ex.: JSON)
+- [x] **RF-40** — Exportar todos os dados do usuário (Períodos, Cadeiras, Itens, features, tags, boards) em um formato portável (ex.: JSON)
   - **Prioridade:** Alta
   - **Regras de negócio relacionadas:** `06-requisitos-nao-funcionais.md` — Backup e portabilidade de dados

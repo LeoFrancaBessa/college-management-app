@@ -3,11 +3,14 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.schemas.schedule import ScheduleItemRead
 from app.services import schedule_service
 
-router = APIRouter(prefix="/schedule", tags=["schedule"])
+router = APIRouter(
+    prefix="/schedule", tags=["schedule"], dependencies=[Depends(get_current_user)]
+)
 
 
 @router.get("", response_model=list[ScheduleItemRead])

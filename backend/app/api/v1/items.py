@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.schemas.board import BoardRead
 from app.schemas.item import (
@@ -13,7 +14,9 @@ from app.schemas.item import (
 )
 from app.services import item_service
 
-router = APIRouter(prefix="/items", tags=["items"])
+router = APIRouter(
+    prefix="/items", tags=["items"], dependencies=[Depends(get_current_user)]
+)
 
 
 @router.post("", response_model=ItemRead, status_code=201)

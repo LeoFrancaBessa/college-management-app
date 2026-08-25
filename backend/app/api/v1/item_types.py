@@ -1,11 +1,14 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.schemas.item_type import ItemTypeCreate, ItemTypeRead
 from app.services import item_type_service
 
-router = APIRouter(prefix="/item-types", tags=["item-types"])
+router = APIRouter(
+    prefix="/item-types", tags=["item-types"], dependencies=[Depends(get_current_user)]
+)
 
 
 @router.post("", response_model=ItemTypeRead, status_code=201)

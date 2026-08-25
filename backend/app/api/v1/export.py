@@ -9,10 +9,13 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.services import export_service
 
-router = APIRouter(prefix="/export", tags=["export"])
+router = APIRouter(
+    prefix="/export", tags=["export"], dependencies=[Depends(get_current_user)]
+)
 
 
 @router.get("", summary="Exporta todos os dados em JSON (RF-40)")
@@ -28,7 +31,9 @@ def export_data(db: Session = Depends(get_db)):
 
 
 # /import fica no mesmo arquivo por coesão com RF-40, mas exposto em /api/v1/import
-import_router = APIRouter(prefix="/import", tags=["export"])
+import_router = APIRouter(
+    prefix="/import", tags=["export"], dependencies=[Depends(get_current_user)]
+)
 
 
 @import_router.post("", summary="Restaura dados a partir de um dump JSON (RF-40)")
