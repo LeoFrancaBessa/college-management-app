@@ -1,0 +1,14 @@
+export type Status = 'active' | 'archived' | 'trash'
+export type Period = { id: number; name: string; status: Status; start_date?: string | null; end_date?: string | null; created_at: string }
+export type Course = { id: number; period_id: number; name: string; description?: string | null; status: Status; board_id: number; created_at: string }
+export type Tag = { id: number; name: string; color?: string | null }
+export type ItemType = { id: number; name: string }
+export type BoardColumn = { id: number; board_id: number; name: string; position: number }
+export type Board = { id: number; course_id?: number | null; item_id?: number | null; layout: 'kanban' | 'sprint' | 'lista'; columns: BoardColumn[] }
+export type Grade = { score: number; max_score: number; weight: number }
+export type ChecklistItem = { text: string; done: boolean }
+export type Recurrence = { frequency: 'daily' | 'weekly' | 'monthly' | 'yearly'; interval: number; weekdays?: number[]; until?: string; count?: number }
+export type ItemFeatures = { grade?: Grade; checklist?: ChecklistItem[]; notes?: string; recurrence?: Recurrence }
+export type Item = { id: number; course_id: number; parent_id?: number | null; item_type_id: number; title: string; due_date?: string | null; status: Status; board_column_id?: number | null; board_id?: number | null; features: ItemFeatures; tags: Tag[]; created_at: string; updated_at: string }
+export type ScheduleItem = Item & { due_date: string }
+export type CourseAverage = { course_id: number; average: number | null; count: number }
