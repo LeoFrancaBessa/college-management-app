@@ -12,6 +12,7 @@ from app.models.tag import Tag
 from app.schemas.item import ItemCreate, ItemMove, ItemUpdate
 from app.services.board_service import build_default_board
 from app.services.errors import NotFoundError, ValidationError
+from app.services.recurrence import validate_recurrence
 
 
 def _get_item_type_or_404(db: Session, item_type_id: int) -> ItemType:
@@ -71,13 +72,18 @@ def create_item(db: Session, data: ItemCreate) -> Item:
 
     tags = _get_tags_or_404(db, data.tag_ids)
 
+    features = dict(data.features or {})
+    if "recurrence" in features:
+        # validate_recurrence normaliza em-place e exige due_date
+        validate_recurrence(features, data.due_date)
+
     item = Item(
         title=data.title,
         item_type_id=item_type.id,
         due_date=data.due_date,
         course_id=course_id,
         parent_id=data.parent_id,
-        features=data.features or {},
+        features=features,
         tags=tags,
     )
 
@@ -119,6 +125,37 @@ def update_item(db: Session, item: Item, data: ItemUpdate) -> Item:
     updates = data.model_dump(exclude_unset=True)
     if "item_type_id" in updates:
         _get_item_type_or_404(db, updates["item_type_id"])
+    # RF-20: validate recurrence whenever features or due_date changes
+    if "features" in updates or "due_date" in updates:
+        raw_features = updates.get("features") if "features" in updates else item.features
+        # PATCH with features=None means "clear" — treat as empty
+        if raw_features is None:
+            effective_features: dict | None = {}
+        elif isinstance(raw_features, dict):
+            effective_features = dict(raw_features)
+        else:
+            effective_features = raw_features  # let validator reject type
+        effective_due = updates.get("due_date") if "due_date" in updates else item.due_date
+        # If due_date is being cleared while recurrence is active -> error
+        # validate_recurrence will raise the same, but we pass the effective state
+        if effective_features is not None and isinstance(effective_features, dict) and "recurrence" in effective_features:
+            validate_recurrence(effective_features, effective_due)
+            # persist normalized form when features was part of the patch
+            if "features" in updates:
+                updates["features"] = effective_features
+        elif effective_due is None and isinstance(item.features, dict) and "recurrence" in (item.features or {}):
+            # due_date cleared but recurrence not removed: must fail when
+            # features wasn't touched. Re-validate existing recurrence.
+            tmp = dict(item.features)
+            validate_recurrence(tmp, effective_due)
+        elif "due_date" in updates and isinstance(item.features, dict) and "recurrence" in (item.features or {}):
+            # due_date changed but recurrence untouched — re-validate against new anchor
+            tmp = dict(item.features)
+            validate_recurrence(tmp, effective_due)
+            # also normalize stored features if needed (e.g. until rewritten)
+            # keep original features unless validation mutated it (until ISO)
+            if tmp != item.features:
+                item.features = tmp
     for field, value in updates.items():
         setattr(item, field, value)
     db.commit()

@@ -16,7 +16,6 @@ Entregar a **view agregadora Cronograma** (nunca entidade persistida) e a **Home
 
 ## Fora de escopo desta entrega
 
-- Expansão de **Recorrência** (RF-20 / `features.recurrence`) — fica como `TODO` e retorna só `due_date` base.
 - Paginação / ordenação custom — sempre `due_date ASC, id ASC`.
 - Filtro por `period_id`, `tag`, `status` arbitrário — só `course_id` + janela `from/to` nesta V1.
 - Frontend (FullCalendar) — só API.
@@ -26,7 +25,7 @@ Entregar a **view agregadora Cronograma** (nunca entidade persistida) e a **Home
 - Fonte única: `items` onde `due_date IS NOT NULL` **e** `status == active`. Itens `archived` e `trash` (`ItemStatus.TRASH` — `backend/app/models/enums.py:17`, `deleted_at` `backend/app/models/item.py:54`) **não aparecem**.
 - Ordenação cronológica `due_date ASC` (estável por `id ASC` em empate).
 - Sem tabela `schedules`; sem `deleted_at` envolvido além do filtro de `status`.
-- `features` JSON não afeta o cronograma nesta entrega (exceto quando RF-20 for implementado).
+- **RF-20** — `features.recurrence` (`backend/app/services/recurrence.py`) é expandido virtualmente no cronograma: cada `due_date` âncora gera N ocorrências (`expand_recurrence`) filtradas por `from_date`/`to_date`; sem tabela extra, sem persistência de instâncias (Regra pétrea 2). Antes de RF-20 o comportamento era só `due_date` base (`TODO(RF-20)` removido).
 
 ## API
 
@@ -50,7 +49,7 @@ Erros: `200` sempre (lista vazia se nada casa); `course_id` inexistente retorna 
 1. Item sem `due_date` nunca entra no cronograma.
 2. Item arquivado ou em lixeira nunca entra (mesmo com `due_date`).
 3. Item-filho com `due_date` entra normalmente (herda `course_id` do pai — `backend/app/services/item_service.py:60`).
-4. Recorrência: até RF-20 existir, **nenhuma expansão** — listar só `due_date` armazenado; código deve conter `TODO(RF-20)`.
+4. Recorrência (RF-20 — `backend/app/services/recurrence.py:1` / `schedule_service.py:70`): `features.recurrence = {frequency, interval, weekdays?, until|count}` validado em `item_service.create/update` (exige `due_date`, exatamente um de `until|count`, `frequency` em `daily|weekly|monthly|yearly`, `interval >=1`, `weekdays` só com `weekly`, `count <=500`). `due_date` é ocorrência 0, `until` inclusivo; expansão via `expand_recurrence` por janela (`from_date`/`to_date`), desduplicada por `id/due_date`, ordenada `due_date ASC`; item com âncora fora da janela ainda aparece se alguma ocorrência cai dentro.
 5. Homepage agrega **todas** as cadeiras/períodos; janela é UTC day boundaries, injetável via `now` para testes.
 
 ## Critérios de aceite
@@ -62,7 +61,7 @@ Erros: `200` sempre (lista vazia se nada casa); `course_id` inexistente retorna 
 - [ ] Itens sem `due_date` não retornam.
 - [ ] Itens `archived`/`trash` não retornam.
 - [ ] Sem entidade `Schedule` criada; `GET /schedule` não cria efeitos colaterais.
-- [ ] `TODO(RF-20)` presente no service.
+- [ ] `TODO(RF-20)` removido — RF-20 implementado: expansão via `backend/app/services/recurrence.py:1` / `schedule_service.py:70`.
 
 ## Casos de borda
 

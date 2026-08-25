@@ -86,7 +86,7 @@
   - **Prioridade:** Média
   - **Casos de uso relacionados:** UC-05
   - **Regras de negócio relacionadas:** Regra pétrea 3
-- [ ] **RF-20** — Ativar/desativar feature **Recorrência** em um item (frequência + término por data ou nº de ocorrências)
+- [x] **RF-20** — Ativar/desativar feature **Recorrência** em um item (frequência + término por data ou nº de ocorrências)
   - **Prioridade:** Alta
   - **Casos de uso relacionados:** UC-05
   - **Regras de negócio relacionadas:** Regra pétrea 3
