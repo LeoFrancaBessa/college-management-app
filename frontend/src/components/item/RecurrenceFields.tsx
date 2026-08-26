@@ -5,6 +5,12 @@ import type { ItemFeatures, Recurrence } from '../../api/types'
 import { Button } from '../ui/Button'
 
 const FREQUENCIES: Recurrence['frequency'][] = ['daily', 'weekly', 'monthly', 'yearly']
+const FREQUENCY_LABELS: Record<Recurrence['frequency'], string> = {
+  daily: 'Diária',
+  weekly: 'Semanal',
+  monthly: 'Mensal',
+  yearly: 'Anual',
+}
 const WEEKDAY_LABELS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
 
 export function RecurrenceFields({ itemId, features, value }: { itemId: number; features: ItemFeatures; value?: Recurrence | null }) {
@@ -34,17 +40,17 @@ export function RecurrenceFields({ itemId, features, value }: { itemId: number; 
     setFieldErrors({})
     const iv = Number(interval)
     if (!Number.isFinite(iv) || iv < 1) {
-      setError('Interval deve ser inteiro >= 1')
+      setError('Intervalo deve ser inteiro ≥ 1')
       return
     }
     const hasUntil = until.trim() !== ''
     const hasCount = count.trim() !== ''
     if (hasUntil && hasCount) {
-      setError('Use apenas um de until (data) ou count (número) — não ambos')
+      setError('Use apenas um: data limite ou quantidade de ocorrências — não ambos')
       return
     }
     if (!hasUntil && !hasCount) {
-      setError('Informe until (data-limite) ou count (nº de ocorrências)')
+      setError('Informe a data limite ou a quantidade de ocorrências')
       return
     }
     const rec: any = { frequency, interval: iv }
@@ -53,7 +59,7 @@ export function RecurrenceFields({ itemId, features, value }: { itemId: number; 
     else {
       const c = Number(count)
       if (!Number.isFinite(c) || c < 1) {
-        setError('count deve ser inteiro >= 1')
+        setError('Quantidade deve ser inteira ≥ 1')
         return
       }
       rec.count = c
@@ -73,10 +79,10 @@ export function RecurrenceFields({ itemId, features, value }: { itemId: number; 
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-gray-500">requer due_date preenchida no item — aparecerá no cronograma</p>
+      <p className="text-xs text-gray-500">Requer data de entrega preenchida no item — aparecerá no cronograma</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label className="text-sm font-medium text-gray-700">frequency</label>
+          <label className="text-sm font-medium text-gray-700">Frequência</label>
           <select
             value={frequency}
             onChange={(e) => setFrequency(e.target.value as Recurrence['frequency'])}
@@ -84,13 +90,13 @@ export function RecurrenceFields({ itemId, features, value }: { itemId: number; 
           >
             {FREQUENCIES.map((f) => (
               <option key={f} value={f}>
-                {f}
+                {FREQUENCY_LABELS[f]}
               </option>
             ))}
           </select>
         </div>
         <div>
-          <label className="text-sm font-medium text-gray-700">interval</label>
+          <label className="text-sm font-medium text-gray-700">Intervalo</label>
           <input
             value={interval}
             onChange={(e) => setInterval(e.target.value)}
@@ -101,7 +107,7 @@ export function RecurrenceFields({ itemId, features, value }: { itemId: number; 
       </div>
       {frequency === 'weekly' && (
         <div>
-          <p className="text-sm font-medium text-gray-700 mb-1">weekdays (só quando weekly)</p>
+          <p className="text-sm font-medium text-gray-700 mb-1">Dias da semana (apenas semanal)</p>
           <div className="flex flex-wrap gap-2">
             {WEEKDAY_LABELS.map((label, idx) => (
               <label key={idx} className="flex items-center gap-1 text-sm">
@@ -113,7 +119,7 @@ export function RecurrenceFields({ itemId, features, value }: { itemId: number; 
       )}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label className="text-sm font-medium text-gray-700">until (data-limite)</label>
+          <label className="text-sm font-medium text-gray-700">Até (data limite)</label>
           <input
             type="date"
             value={until}
@@ -125,7 +131,7 @@ export function RecurrenceFields({ itemId, features, value }: { itemId: number; 
           />
         </div>
         <div>
-          <label className="text-sm font-medium text-gray-700">count (nº de ocorrências)</label>
+          <label className="text-sm font-medium text-gray-700">Quantidade (nº de ocorrências)</label>
           <input
             value={count}
             onChange={(e) => {
@@ -137,7 +143,7 @@ export function RecurrenceFields({ itemId, features, value }: { itemId: number; 
           />
         </div>
       </div>
-      <p className="text-xs text-gray-500">Informe exatamente um: until OU count</p>
+      <p className="text-xs text-gray-500">Informe exatamente um: data limite OU quantidade</p>
       {Object.entries(fieldErrors).map(([k, v]) => (
         <p key={k} className="text-xs text-red-600">
           {k}: {v}

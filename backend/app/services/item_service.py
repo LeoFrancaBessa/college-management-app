@@ -286,9 +286,9 @@ def set_board_column(db: Session, item: Item, board_column_id: int | None) -> It
 
 
 def add_tags(db: Session, item: Item, tag_ids: list[int]) -> Item:
-    for tag in _get_tags_or_404(db, tag_ids):
-        if tag not in item.tags:
-            item.tags.append(tag)
+    # PUT /items/{id}/tags is a full replacement (set), not an append:
+    # sending [] must clear, sending a subset must remove the missing ones.
+    item.tags = _get_tags_or_404(db, tag_ids)
     db.commit()
     db.refresh(item)
     return item

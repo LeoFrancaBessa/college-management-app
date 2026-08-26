@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from 'react'
+import { useEffect, useRef, useState, lazy, Suspense } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { useItem, useUpdateItem, useCreateItem, useArchiveItem, useDeleteItem, useItems } from '../api/items'
 import { useCourse } from '../api/courses'
@@ -58,13 +58,12 @@ export default function ItemDetail() {
   const createChild = useCreateItem()
   const setItemTags = useSetItemTags(valid ? id : 0)
 
-  const [editingTitle, setEditingTitle] = useState(false)
-  const [titleDraft, setTitleDraft] = useState('')
-  const [titleError, setTitleError] = useState('')
-  const [typeDraft, setTypeDraft] = useState('')
-  const [typeError, setTypeError] = useState('')
-  const [dateDraft, setDateDraft] = useState('')
-  const [dateError, setDateError] = useState('')
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const [editName, setEditName] = useState('')
+  const [editTypeId, setEditTypeId] = useState('')
+  const [editDate, setEditDate] = useState('')
+  const [editError, setEditError] = useState('')
   const [showCreateType, setShowCreateType] = useState(false)
   const [newTypeName, setNewTypeName] = useState('')
   const [newTypeError, setNewTypeError] = useState('')
@@ -76,6 +75,29 @@ export default function ItemDetail() {
   const [childTypeId, setChildTypeId] = useState('')
   const [childError, setChildError] = useState('')
   const [tagError, setTagError] = useState('')
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (item && editOpen) {
+      setEditName(item.title)
+      setEditTypeId(String(item.item_type_id))
+      setEditDate(item.due_date ? item.due_date.slice(0, 10) : '')
+      setEditError('')
+      setNewTypeError('')
+      setShowCreateType(false)
+    }
+  }, [item, editOpen])
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const onDown = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
+    }
+    const onEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false) }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onEsc)
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onEsc) }
+  }, [menuOpen])
 
   if (!valid) {
     return <EmptyState title="Item não encontrado" description="ID inválido." action={<Link to="/" className="text-sm text-primary hover:underline">Voltar ao Dashboard</Link>} />
@@ -104,34 +126,37 @@ export default function ItemDetail() {
   const recurrenceEnabled = features.recurrence != null
   const hasBoard = !!item.board || item.board_id != null
 
-  const startEditTitle = () => {
-    setTitleDraft(item.title)
-    setTitleError('')
-    setEditingTitle(true)
+  const openEdit = () => {
+    if (!item) return
+    setEditName(item.title)
+    setEditTypeId(String(item.item_type_id))
+    setEditDate(item.due_date ? item.due_date.slice(0, 10) : '')
+    setEditError('')
+    setNewTypeError('')
+    setShowCreateType(false)
+    setMenuOpen(false)
+    setEditOpen(true)
   }
-  const handleSaveTitle = async () => {
-    setTitleError('')
-    if (!titleDraft.trim()) { setTitleError('Título é obrigatório'); return }
+
+  const handleEditSave = async (e?: React.FormEvent) => {
+    e?.preventDefault()
+    setEditError('')
+    if (!editName.trim()) { setEditError('Título é obrigatório'); return }
+    if (!editTypeId) { setEditError('Tipo é obrigatório'); return }
     try {
-      await update.mutateAsync({ title: titleDraft.trim() } as any)
-      setEditingTitle(false)
-    } catch (e: any) {
-      if (e instanceof ApiError) setTitleError(e.detail)
-      else setTitleError(e?.detail ?? e?.message ?? 'Erro ao salvar')
+      await update.mutateAsync({
+        title: editName.trim(),
+        item_type_id: Number(editTypeId),
+        due_date: editDate ? new Date(editDate).toISOString() : null,
+      } as any)
+      setEditOpen(false)
+    } catch (err: any) {
+      if (err instanceof ApiError) setEditError(err.detail)
+      else setEditError(err?.detail ?? err?.message ?? 'Erro ao salvar')
     }
   }
-  const handleChangeType = async (val: string) => {
-    setTypeDraft(val)
-    setTypeError('')
-    if (!val) return
-    try {
-      await update.mutateAsync({ item_type_id: Number(val) } as any)
-    } catch (e: any) {
-      if (e instanceof ApiError) setTypeError(e.detail)
-      else setTypeError(e?.detail ?? e?.message ?? 'Erro ao alterar tipo')
-    }
-  }
-  const handleCreateType = async () => {
+
+  const handleCreateTypeInModal = async () => {
     setNewTypeError('')
     const name = newTypeName.trim()
     if (!name) { setNewTypeError('Nome é obrigatório'); return }
@@ -140,23 +165,13 @@ export default function ItemDetail() {
       qc.invalidateQueries({ queryKey: ['itemTypes'] })
       setNewTypeName('')
       setShowCreateType(false)
-      setTypeDraft(String(created.id))
-      await update.mutateAsync({ item_type_id: created.id } as any)
+      setEditTypeId(String(created.id))
     } catch (e: any) {
       if (e instanceof ApiError) setNewTypeError(e.detail)
       else setNewTypeError(e?.detail ?? e?.message ?? 'Erro ao criar tipo')
     }
   }
-  const handleSaveDate = async (val: string) => {
-    setDateError('')
-    setDateDraft(val)
-    try {
-      await update.mutateAsync({ due_date: val ? new Date(val).toISOString() : null } as any)
-    } catch (e: any) {
-      if (e instanceof ApiError) setDateError(e.detail)
-      else setDateError(e?.detail ?? e?.message ?? 'Erro ao salvar data')
-    }
-  }
+
   const handleArchive = async () => {
     try { await archive.mutateAsync(id); setConfirmArchive(false) } catch { /* toast handled elsewhere */ }
   }
@@ -202,9 +217,7 @@ export default function ItemDetail() {
     }
   }
 
-  // init drafts from item when not editing
-  const displayTypeId = typeDraft || String(item.item_type_id)
-  const displayDate = dateDraft || (item.due_date ? item.due_date.slice(0, 10) : '')
+  const isArchived = item.status === 'archived'
 
   return (
     <div className="space-y-4">
@@ -239,66 +252,101 @@ export default function ItemDetail() {
 
       <Link to={`/cadeiras/${item.course_id}`} className="inline-flex items-center text-sm text-gray-500 hover:text-gray-900 min-h-[44px]">← Voltar à cadeira</Link>
 
+      {/* Header — somente leitura; ações no menu ⋮ */}
       <Card>
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1 space-y-3">
-            {!editingTitle ? (
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-xl font-semibold text-gray-900 break-words">{item.title}</h1>
-                <button onClick={startEditTitle} className="text-sm text-primary hover:underline min-h-[44px] px-2 shrink-0">Editar</button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl font-semibold text-gray-900 break-words">{item.title}</h1>
+              <span className="text-xs px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 font-medium capitalize shrink-0">{item.status}</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs font-medium text-gray-500">Tipo</p>
+                <p className="text-sm text-gray-900 mt-1">{item.item_type?.name ?? '—'}</p>
               </div>
-            ) : (
-              <div className="space-y-2">
-                <div className="flex flex-wrap gap-2">
-                  <input value={titleDraft} onChange={(e) => setTitleDraft(e.target.value)} placeholder="Título" className="flex-1 min-w-[180px] border border-gray-200 rounded-lg px-3 py-2 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
-                  <Button onClick={handleSaveTitle} disabled={update.isPending}>Salvar</Button>
-                  <Button variant="ghost" onClick={() => setEditingTitle(false)}>Cancelar</Button>
-                </div>
-                {titleError && <p className="text-sm text-red-600">{titleError}</p>}
+              <div>
+                <p className="text-xs font-medium text-gray-500">Data de entrega</p>
+                <p className="text-sm text-gray-900 mt-1">{fmtDate(item.due_date)}</p>
               </div>
-            )}
-            <div className="space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3">
-                <span className="text-sm font-medium text-gray-700 sm:w-32 shrink-0">Tipo</span>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <select value={displayTypeId} onChange={(e) => handleChangeType(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-primary text-sm bg-white min-w-[140px] max-w-full">
-                    {itemTypes?.map((t) => <option key={t.id} value={String(t.id)}>{t.name}</option>)}
-                  </select>
-                  {!showCreateType ? (
-                    <button onClick={() => setShowCreateType(true)} className="text-sm text-primary hover:underline min-h-[44px] px-2 shrink-0">criar tipo</button>
-                  ) : (
-                    <span className="inline-flex items-center gap-2 flex-wrap">
-                      <input value={newTypeName} onChange={(e) => setNewTypeName(e.target.value)} placeholder="Novo tipo" className="border border-gray-200 rounded-lg px-3 py-2 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-primary text-sm w-36" />
-                      <Button onClick={handleCreateType}>Criar</Button>
-                      <Button variant="ghost" onClick={() => { setShowCreateType(false); setNewTypeName(''); setNewTypeError('') }}>Cancelar</Button>
-                    </span>
-                  )}
-                </div>
-              </div>
-              {typeError && <p className="text-sm text-red-600 sm:ml-32 sm:pl-3">{typeError}</p>}
-              {newTypeError && <p className="text-sm text-red-600 sm:ml-32 sm:pl-3">{newTypeError}</p>}
-              <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3">
-                <label htmlFor="item-due-date" className="text-sm font-medium text-gray-700 sm:w-32 shrink-0">Data de entrega</label>
-                <input id="item-due-date" type="date" value={displayDate} onChange={(e) => handleSaveDate(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-primary text-sm w-full sm:w-auto sm:min-w-[180px]" />
-              </div>
-              {dateError && <p className="text-sm text-red-600 sm:ml-32 sm:pl-3">{dateError}</p>}
-              <p className="text-sm text-gray-500 sm:ml-32 sm:pl-3">Atual: {fmtDate(item.due_date)}</p>
             </div>
             <div className="flex items-center gap-2 flex-wrap pt-1">
               {item.item_type && <Badge active>{item.item_type.name}</Badge>}
-              <span className="text-xs px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 font-medium capitalize">{item.status}</span>
               {item.tags?.map((t) => (
                 <span key={t.id} className="text-xs px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 font-medium" style={t.color ? { backgroundColor: t.color + '22', color: t.color } : undefined}>{t.name}</span>
               ))}
             </div>
             {item.parent_id != null && <p className="text-xs text-gray-500">Filho de #{item.parent_id} — <Link to={`/itens/${item.parent_id}`} className="text-primary hover:underline">ver pai</Link></p>}
           </div>
-          <div className="flex flex-row sm:flex-col gap-2 shrink-0 sm:min-w-[120px]">
-            <Button variant="ghost" onClick={() => setConfirmArchive(true)} className="flex-1 sm:flex-none justify-center">Arquivar</Button>
-            <Button variant="danger" onClick={() => setConfirmDelete(true)} className="flex-1 sm:flex-none justify-center">Excluir</Button>
+          <div className="relative shrink-0" ref={menuRef}>
+            <button
+              type="button"
+              aria-label="Ações do item"
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((v) => !v)}
+              className="inline-flex items-center justify-center w-9 h-9 rounded-lg hover:bg-gray-100 text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition"
+            >
+              <span aria-hidden className="text-lg leading-none">⋮</span>
+            </button>
+            {menuOpen && (
+              <div role="menu" className="absolute right-0 mt-2 w-44 bg-white border border-gray-200 rounded-xl shadow-lg py-1 z-20">
+                <button role="menuitem" onClick={openEdit} className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 min-h-[44px] flex items-center">Editar</button>
+                <button
+                  role="menuitem"
+                  onClick={() => { setMenuOpen(false); setConfirmArchive(true) }}
+                  disabled={isArchived}
+                  className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] flex items-center"
+                >
+                  {isArchived ? 'Arquivado' : 'Arquivar'}
+                </button>
+                <div className="border-t border-gray-100 my-1" />
+                <button role="menuitem" onClick={() => { setMenuOpen(false); setConfirmDelete(true) }} className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 min-h-[44px] flex items-center">Excluir</button>
+              </div>
+            )}
           </div>
         </div>
       </Card>
+
+      {/* Modal de edição */}
+      {editOpen && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-label="Editar item" onClick={() => setEditOpen(false)}>
+          <div className="bg-white rounded-xl p-6 max-w-md w-full shadow-lg" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-semibold text-gray-900">Editar item</h3>
+            <form onSubmit={handleEditSave} className="mt-4 space-y-3">
+              <div>
+                <label className="text-sm font-medium text-gray-700">Título</label>
+                <input value={editName} onChange={(e) => setEditName(e.target.value)} className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-primary" autoFocus />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Tipo</label>
+                <select value={editTypeId} onChange={(e) => setEditTypeId(e.target.value)} className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-primary bg-white">
+                  {itemTypes?.map((t) => <option key={t.id} value={String(t.id)}>{t.name}</option>)}
+                </select>
+                {!showCreateType ? (
+                  <button type="button" onClick={() => setShowCreateType(true)} className="mt-2 text-sm text-primary hover:underline min-h-[44px] px-1">criar tipo</button>
+                ) : (
+                  <span className="mt-2 flex items-center gap-2 flex-wrap">
+                    <input value={newTypeName} onChange={(e) => setNewTypeName(e.target.value)} placeholder="Novo tipo" className="border border-gray-200 rounded-lg px-3 py-2 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-primary text-sm flex-1 min-w-[120px]" />
+                    <Button type="button" onClick={handleCreateTypeInModal}>Criar</Button>
+                    <Button type="button" variant="ghost" onClick={() => { setShowCreateType(false); setNewTypeName(''); setNewTypeError('') }}>Cancelar</Button>
+                  </span>
+                )}
+                {newTypeError && <p className="text-sm text-red-600 mt-1">{newTypeError}</p>}
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Data de entrega</label>
+                <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+              {editError && <p className="text-sm text-red-600">{editError}</p>}
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setEditOpen(false)} className="px-4 py-2 min-h-[44px] rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition">Cancelar</button>
+                <button type="submit" disabled={update.isPending} className="px-4 py-2 min-h-[44px] bg-primary text-white rounded-lg text-sm font-medium hover:brightness-95 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 transition">{update.isPending ? 'Salvando…' : 'Salvar'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {featureError && <p className="text-sm text-red-600">{featureError}</p>}
 

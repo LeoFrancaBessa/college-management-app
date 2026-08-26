@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from 'react'
+import { useEffect, useRef, useState, lazy, Suspense } from 'react'
 import { useParams, useSearchParams, Link, useNavigate } from 'react-router-dom'
 import { Tabs } from '../components/ui/Tabs'
 import { Card } from '../components/ui/Card'
@@ -7,7 +7,7 @@ import { Skeleton, SkeletonList } from '../components/ui/Skeleton'
 import { EmptyState } from '../components/ui/EmptyState'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { Badge } from '../components/ui/Badge'
-import { useCourse } from '../api/courses'
+import { useCourse, useUpdateCourse, useArchiveCourse, useDeleteCourse } from '../api/courses'
 import { useItems, useCreateItem, useUpdateItem, useArchiveItem, useDeleteItem, useMoveItem, useSetBoardColumn } from '../api/items'
 import { useItemTypes } from '../api/itemTypes'
 import { useSchedule } from '../api/schedule'
@@ -47,20 +47,21 @@ function ChildrenRow({ parentId }: { parentId: number }) {
   return (
     <div className="pl-6 mt-2 space-y-2 border-l-2 border-gray-100 ml-2">
       {children.map((ch) => (
-        <div key={ch.id} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
+        <Link key={ch.id} to={`/itens/${ch.id}`} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition cursor-pointer">
           <div className="min-w-0">
             <span className="text-sm font-medium text-gray-900 truncate">{ch.title}</span>
             <span className="text-xs text-gray-500 ml-2">{ch.item_type?.name ?? ''}</span>
             {ch.due_date && <span className="text-xs text-gray-500 ml-2">{fmtDate(ch.due_date)}</span>}
           </div>
-          <Link to={`/itens/${ch.id}`} className="text-xs text-primary hover:underline min-h-[44px] flex items-center px-2">ver detalhes</Link>
-        </div>
+          <span aria-hidden className="text-gray-400 shrink-0 ml-2">›</span>
+        </Link>
       ))}
     </div>
   )
 }
 
 function ItemRow({ item, allItems }: { item: import('../api/types').Item; allItems: import('../api/types').Item[] }) {
+  const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
   const [editDateOpen, setEditDateOpen] = useState(false)
   const [dateDraft, setDateDraft] = useState(item.due_date ? item.due_date.slice(0, 10) : '')
@@ -126,7 +127,11 @@ function ItemRow({ item, allItems }: { item: import('../api/types').Item; allIte
   return (
     <div className="py-3 border-b border-gray-100 last:border-0">
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
+        <button
+          type="button"
+          onClick={() => navigate(`/itens/${item.id}`)}
+          className="min-w-0 flex-1 text-left cursor-pointer rounded-lg -m-1 p-1 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition"
+        >
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-medium text-gray-900 truncate">{item.title}</span>
             {item.item_type && <Badge>{item.item_type.name}</Badge>}
@@ -137,12 +142,19 @@ function ItemRow({ item, allItems }: { item: import('../api/types').Item; allIte
           </div>
           <div className="flex items-center gap-3 mt-1 flex-wrap">
             <span className="text-xs text-gray-500">{item.due_date ? fmtDate(item.due_date) : 'sem data'}</span>
-            <button onClick={() => setExpanded((v) => !v)} className="text-xs text-gray-500 hover:text-gray-900 min-h-[44px] px-2">{expanded ? 'ocultar filhos' : 'ver filhos'}</button>
-            <Link to={`/itens/${item.id}`} className="text-xs text-primary hover:underline min-h-[44px] flex items-center px-2">ver detalhes</Link>
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v) }}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); setExpanded((v) => !v) } }}
+              className="text-xs text-gray-500 hover:text-gray-900 min-h-[44px] px-2 inline-flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
+            >
+              {expanded ? 'ocultar filhos' : 'ver filhos'}
+            </span>
           </div>
-        </div>
+        </button>
         <div className="relative shrink-0">
-          <button onClick={() => setMenuOpen((v) => !v)} aria-label="menu" className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50">•••</button>
+          <button onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v) }} aria-label="menu" className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50">•••</button>
           {menuOpen && (
             <div className="absolute right-0 mt-1 w-64 bg-white border border-gray-200 rounded-xl shadow-lg z-10 p-2 space-y-1">
               {!editDateOpen ? (
@@ -269,17 +281,143 @@ function ListaTab({ courseId }: { courseId: number }) {
 export default function CourseDetail(){
   const {courseId}=useParams(); const [sp,setSp]=useSearchParams(); const tab=sp.get('tab')??'lista'
   const id = Number(courseId)
+  const navigate = useNavigate()
   const { data: course, isLoading: lc } = useCourse(Number.isFinite(id) && id>0 ? id : 0)
+  const update = useUpdateCourse(Number.isFinite(id) && id>0 ? id : 0)
+  const archive = useArchiveCourse()
+  const del = useDeleteCourse()
+
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const [editName, setEditName] = useState('')
+  const [editDesc, setEditDesc] = useState('')
+  const [editError, setEditError] = useState('')
+  const [confirmArchive, setConfirmArchive] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [saveError, setSaveError] = useState('')
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (course && editOpen) {
+      setEditName(course.name)
+      setEditDesc(course.description ?? '')
+      setEditError('')
+    }
+  }, [course, editOpen])
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const onDown = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
+    }
+    const onEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false) }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onEsc)
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onEsc) }
+  }, [menuOpen])
+
+  const openEdit = () => {
+    if (!course) return
+    setEditName(course.name)
+    setEditDesc(course.description ?? '')
+    setEditError('')
+    setMenuOpen(false)
+    setEditOpen(true)
+  }
+
+  const handleEditSave = async (e?: React.FormEvent) => {
+    e?.preventDefault()
+    setEditError('')
+    if (!editName.trim()) { setEditError('Nome é obrigatório'); return }
+    try {
+      await update.mutateAsync({ name: editName.trim(), description: editDesc.trim() || null } as any)
+      setEditOpen(false)
+    } catch (err: any) {
+      setEditError(err?.detail ?? err?.message ?? 'Erro ao salvar')
+    }
+  }
+
+  const handleArchive = async () => {
+    try {
+      await archive.mutateAsync(id)
+      setConfirmArchive(false)
+    } catch (e: any) {
+      setSaveError(e?.detail ?? e?.message ?? 'Erro ao arquivar')
+    }
+  }
+
+  const handleDelete = async () => {
+    try {
+      await del.mutateAsync(id)
+      navigate(course ? `/periodos/${course.period_id}` : '/')
+    } catch (e: any) {
+      setSaveError(e?.detail ?? e?.message ?? 'Erro ao excluir')
+    }
+  }
+
+  const isArchived = course?.status === 'archived'
+
   return <div className="space-y-4">
     <div>
       {lc ? <Skeleton className="h-6 w-40" /> : course ? (
-        <div className="flex items-center gap-2">
-          <Link to={`/periodos/${course.period_id}`} className="text-sm text-gray-500 hover:text-gray-900">Período #{course.period_id}</Link>
-          <span className="text-gray-300">/</span>
-          <h1 className="text-xl font-semibold text-gray-900">{course.name}</h1>
-        </div>
+        <Link to={`/periodos/${course.period_id}`} className="text-sm text-gray-500 hover:text-gray-900">← Voltar ao período</Link>
       ) : null}
     </div>
+
+    {lc ? <Skeleton className="h-24 w-full" /> : course ? (
+      <Card>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl font-semibold text-gray-900 truncate">{course.name}</h1>
+              <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600 shrink-0">{course.status}</span>
+            </div>
+            {course.description ? (
+              <p className="text-sm text-gray-600 mt-2 break-words">{course.description}</p>
+            ) : (
+              <p className="text-sm text-gray-400 mt-2">Sem descrição</p>
+            )}
+            {saveError && <p className="text-sm text-red-600 mt-3">{saveError}</p>}
+          </div>
+          <div className="relative shrink-0" ref={menuRef}>
+            <button
+              type="button"
+              aria-label="Ações da cadeira"
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((v) => !v)}
+              className="inline-flex items-center justify-center w-9 h-9 rounded-lg hover:bg-gray-100 text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition"
+            >
+              <span aria-hidden className="text-lg leading-none">⋮</span>
+            </button>
+            {menuOpen && (
+              <div role="menu" className="absolute right-0 mt-2 w-44 bg-white border border-gray-200 rounded-xl shadow-lg py-1 z-20">
+                <button role="menuitem" onClick={openEdit} className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 min-h-[44px] flex items-center">
+                  Editar
+                </button>
+                <button
+                  role="menuitem"
+                  onClick={() => { setMenuOpen(false); setConfirmArchive(true) }}
+                  disabled={isArchived}
+                  className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] flex items-center"
+                >
+                  {isArchived ? 'Arquivada' : 'Arquivar'}
+                </button>
+                <div className="border-t border-gray-100 my-1" />
+                <button
+                  role="menuitem"
+                  onClick={() => { setMenuOpen(false); setConfirmDelete(true) }}
+                  className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 min-h-[44px] flex items-center"
+                >
+                  Excluir
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </Card>
+    ) : null}
+
     <Tabs value={tab} onValueChange={v=> setSp({tab:v})} tabs={[{value:'lista',label:'Lista'},{value:'board',label:'Board'},{value:'cronograma',label:'Cronograma'}]} />
     {tab==='lista' && (Number.isFinite(id) && id>0 ? <ListaTab courseId={id} /> : <EmptyState title="Cadeira não encontrada" />)}
     {tab==='board' && (Number.isFinite(id) && id>0 ? (
@@ -292,5 +430,65 @@ export default function CourseDetail(){
         <CronogramaTab courseId={id} />
       </Suspense>
     ) : <EmptyState title="Cadeira não encontrada" />)}
+
+    {editOpen && (
+      <div
+        className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Editar cadeira"
+        onClick={() => setEditOpen(false)}
+      >
+        <div className="bg-white rounded-xl p-6 max-w-md w-full shadow-lg" onClick={(e) => e.stopPropagation()}>
+          <h3 className="font-semibold text-gray-900">Editar cadeira</h3>
+          <form onSubmit={handleEditSave} className="mt-4 space-y-3">
+            <div>
+              <label className="text-sm font-medium text-gray-700">Nome</label>
+              <input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-primary"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700">Descrição</label>
+              <input
+                value={editDesc}
+                onChange={(e) => setEditDesc(e.target.value)}
+                placeholder="Descrição (opcional)"
+                className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            {editError && <p className="text-sm text-red-600">{editError}</p>}
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" onClick={() => setEditOpen(false)} className="px-4 py-2 min-h-[44px] rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition">
+                Cancelar
+              </button>
+              <button type="submit" disabled={update.isPending} className="px-4 py-2 min-h-[44px] bg-primary text-white rounded-lg text-sm font-medium hover:brightness-95 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 transition">
+                {update.isPending ? 'Salvando…' : 'Salvar'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    )}
+
+    <ConfirmDialog
+      open={confirmArchive}
+      title="Arquivar cadeira"
+      description="A cadeira será arquivada junto com seus itens?"
+      confirmLabel="Arquivar"
+      onConfirm={handleArchive}
+      onClose={() => setConfirmArchive(false)}
+    />
+    <ConfirmDialog
+      open={confirmDelete}
+      title="Excluir cadeira"
+      description="Esta ação não pode ser desfeita. Itens vinculados também serão removidos."
+      confirmLabel="Excluir"
+      onConfirm={handleDelete}
+      onClose={() => setConfirmDelete(false)}
+    />
   </div>
 }

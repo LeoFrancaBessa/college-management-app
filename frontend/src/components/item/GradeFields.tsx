@@ -25,7 +25,7 @@ export function GradeFields({ itemId, features, value }: { itemId: number; featu
     const m = maxScore.trim() === '' ? NaN : Number(maxScore)
     const w = weight.trim() === '' ? NaN : Number(weight)
     if (Number.isNaN(s) || Number.isNaN(m) || Number.isNaN(w)) {
-      setError('Preencha score, max_score e weight com números válidos')
+      setError('Preencha nota, nota máxima e peso com números válidos')
       return
     }
     const grade = { score: s, max_score: m, weight: w }
@@ -48,18 +48,18 @@ export function GradeFields({ itemId, features, value }: { itemId: number; featu
     <div className="space-y-3">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>
-          <label className="text-sm font-medium text-gray-700">score</label>
+          <label className="text-sm font-medium text-gray-700">Nota</label>
           <input
             value={score}
             onChange={(e) => setScore(e.target.value)}
-            placeholder="ex: 8.5"
+            placeholder="ex: 8,5"
             className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-primary text-sm"
           />
           {fieldErrors.score && <p className="text-xs text-red-600 mt-1">{fieldErrors.score}</p>}
           {fieldErrors['grade.score'] && <p className="text-xs text-red-600 mt-1">{fieldErrors['grade.score']}</p>}
         </div>
         <div>
-          <label className="text-sm font-medium text-gray-700">max_score</label>
+          <label className="text-sm font-medium text-gray-700">Nota máxima</label>
           <input
             value={maxScore}
             onChange={(e) => setMaxScore(e.target.value)}
@@ -70,7 +70,7 @@ export function GradeFields({ itemId, features, value }: { itemId: number; featu
           {fieldErrors['grade.max_score'] && <p className="text-xs text-red-600 mt-1">{fieldErrors['grade.max_score']}</p>}
         </div>
         <div>
-          <label className="text-sm font-medium text-gray-700">weight</label>
+          <label className="text-sm font-medium text-gray-700">Peso</label>
           <input
             value={weight}
             onChange={(e) => setWeight(e.target.value)}
