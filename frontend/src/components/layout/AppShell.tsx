@@ -1,7 +1,7 @@
 import { Outlet, useNavigate } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { BottomNav } from './BottomNav'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { CommandPalette } from './CommandPalette'
 import { useLogout, useMe } from '../../api/auth'
 
@@ -10,6 +10,17 @@ export function AppShell() {
   const { data: me } = useMe()
   const logout = useLogout()
   const navigate = useNavigate()
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setAiOpen(true)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   const handleLogout = async () => {
     try {
