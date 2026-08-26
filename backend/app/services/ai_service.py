@@ -80,9 +80,9 @@ TOOLS = [
     }
 ]
 
-# Primary model — Gemini 2.0 Flash is current cheap/fast. Keep 1.5 as fallback.
-PRIMARY_MODEL = "gemini-2.0-flash"
-FALLBACK_MODEL = "gemini-1.5-flash"
+# Primary model — 2.0/1.5/2.5 descontinuados para chaves novas (404). Usar aliases latest/3.x.
+PRIMARY_MODEL = "gemini-flash-latest"
+FALLBACK_MODEL = "gemini-3-flash-preview"
 
 # ---------- context ----------
 

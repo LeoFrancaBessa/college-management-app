@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { usePeriods, useCreatePeriod } from '../api/periods'
-import { useCourses } from '../api/courses'
 import { useHomepage } from '../api/schedule'
 import { doExport, useImport } from '../api/export'
 import { Card } from '../components/ui/Card'
@@ -96,7 +95,6 @@ function HomepageSection() {
 
 export default function Dashboard() {
   const { data: periods, isLoading: lp } = usePeriods()
-  const { data: courses, isLoading: lc } = useCourses()
   const createPeriod = useCreatePeriod()
   const [showNewPeriod, setShowNewPeriod] = useState(false)
   const [periodName, setPeriodName] = useState('')
@@ -201,35 +199,6 @@ export default function Dashboard() {
                       {[p.start_date, p.end_date].filter(Boolean).join(' — ') || ''}
                     </p>
                   )}
-                </Card>
-              </Link>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* Courses shortcut */}
-      <section>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold text-gray-900">Cadeiras</h2>
-          <Link to="/periodos/1" className="text-sm text-gray-500 hover:text-gray-900 min-h-[44px] flex items-center">
-            Ver períodos
-          </Link>
-        </div>
-        {lc ? (
-          <SkeletonList count={2} />
-        ) : !courses?.length ? (
-          <EmptyState
-            title="Nenhuma cadeira ainda"
-            description="Crie uma cadeira dentro de um período."
-          />
-        ) : (
-          <div className="space-y-3">
-            {courses.slice(0, 6).map((c) => (
-              <Link key={c.id} to={`/cadeiras/${c.id}`} className="block">
-                <Card className="hover:border-primary-100 transition">
-                  <p className="font-medium text-gray-900">{c.name}</p>
-                  {c.description && <p className="text-sm text-gray-500 mt-1 line-clamp-2">{c.description}</p>}
                 </Card>
               </Link>
             ))}

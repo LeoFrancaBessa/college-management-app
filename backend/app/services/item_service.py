@@ -311,3 +311,24 @@ def enable_board(db: Session, item: Item) -> Board:
     db.commit()
     db.refresh(board)
     return board
+
+
+def disable_board(db: Session, item: Item) -> None:
+    """Deactivates the board on an item (toggle off). Removes the board and
+    its columns; child items fall back to board_column_id = NULL via FK
+    ON DELETE SET NULL."""
+    if item.board is None:
+        raise ValidationError("this item has no board to disable")
+    # Clear board_column_id on direct children that point to this board's
+    # columns so they don't keep a stale reference even though the DB would
+    # SET NULL on FK delete — keeps the ORM state consistent before commit.
+    try:
+        col_ids = [c.id for c in item.board.columns]
+        if col_ids:
+            for child in list(item.children):
+                if child.board_column_id in col_ids:
+                    child.board_column_id = None
+    except Exception:
+        pass
+    db.delete(item.board)
+    db.commit()

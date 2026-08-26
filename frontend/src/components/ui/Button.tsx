@@ -2,6 +2,7 @@ import type { ButtonHTMLAttributes } from 'react'
 
 export function Button({
   variant = 'primary',
+  className,
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'ghost' | 'danger' }) {
   const base =
@@ -12,5 +13,10 @@ export function Button({
       : variant === 'danger'
         ? 'bg-red-600 text-white'
         : 'bg-gray-100 text-gray-900'
-  return <button className={`${base} ${v} focus-visible:ring-2 focus-visible:ring-primary`} {...props} />
+  return (
+    <button
+      className={`${base} ${v} ${className ?? ''} focus-visible:ring-2 focus-visible:ring-primary`.trim()}
+      {...props}
+    />
+  )
 }

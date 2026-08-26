@@ -240,57 +240,62 @@ export default function ItemDetail() {
       <Link to={`/cadeiras/${item.course_id}`} className="inline-flex items-center text-sm text-gray-500 hover:text-gray-900 min-h-[44px]">← Voltar à cadeira</Link>
 
       <Card>
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div className="min-w-0 flex-1 space-y-3">
             {!editingTitle ? (
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-semibold text-gray-900">{item.title}</h1>
-                <button onClick={startEditTitle} className="text-sm text-primary hover:underline min-h-[44px] px-2">Editar</button>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-xl font-semibold text-gray-900 break-words">{item.title}</h1>
+                <button onClick={startEditTitle} className="text-sm text-primary hover:underline min-h-[44px] px-2 shrink-0">Editar</button>
               </div>
             ) : (
               <div className="space-y-2">
-                <div className="flex gap-2">
-                  <input value={titleDraft} onChange={(e) => setTitleDraft(e.target.value)} placeholder="Título" className="flex-1 border border-gray-200 rounded-lg px-3 py-2 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
+                <div className="flex flex-wrap gap-2">
+                  <input value={titleDraft} onChange={(e) => setTitleDraft(e.target.value)} placeholder="Título" className="flex-1 min-w-[180px] border border-gray-200 rounded-lg px-3 py-2 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
                   <Button onClick={handleSaveTitle} disabled={update.isPending}>Salvar</Button>
                   <Button variant="ghost" onClick={() => setEditingTitle(false)}>Cancelar</Button>
                 </div>
                 {titleError && <p className="text-sm text-red-600">{titleError}</p>}
               </div>
             )}
-            <div className="flex items-center gap-2 mt-3 flex-wrap">
-              <select value={displayTypeId} onChange={(e) => handleChangeType(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-primary text-sm bg-white">
-                {itemTypes?.map((t) => <option key={t.id} value={String(t.id)}>{t.name}</option>)}
-              </select>
-              {!showCreateType ? (
-                <button onClick={() => setShowCreateType(true)} className="text-sm text-primary hover:underline min-h-[44px] px-2">criar tipo</button>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <input value={newTypeName} onChange={(e) => setNewTypeName(e.target.value)} placeholder="Novo tipo" className="border border-gray-200 rounded-lg px-3 py-2 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
-                  <Button onClick={handleCreateType}>Criar</Button>
-                  <Button variant="ghost" onClick={() => { setShowCreateType(false); setNewTypeName(''); setNewTypeError('') }}>Cancelar</Button>
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3">
+                <span className="text-sm font-medium text-gray-700 sm:w-32 shrink-0">Tipo</span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <select value={displayTypeId} onChange={(e) => handleChangeType(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-primary text-sm bg-white min-w-[140px] max-w-full">
+                    {itemTypes?.map((t) => <option key={t.id} value={String(t.id)}>{t.name}</option>)}
+                  </select>
+                  {!showCreateType ? (
+                    <button onClick={() => setShowCreateType(true)} className="text-sm text-primary hover:underline min-h-[44px] px-2 shrink-0">criar tipo</button>
+                  ) : (
+                    <span className="inline-flex items-center gap-2 flex-wrap">
+                      <input value={newTypeName} onChange={(e) => setNewTypeName(e.target.value)} placeholder="Novo tipo" className="border border-gray-200 rounded-lg px-3 py-2 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-primary text-sm w-36" />
+                      <Button onClick={handleCreateType}>Criar</Button>
+                      <Button variant="ghost" onClick={() => { setShowCreateType(false); setNewTypeName(''); setNewTypeError('') }}>Cancelar</Button>
+                    </span>
+                  )}
                 </div>
-              )}
+              </div>
+              {typeError && <p className="text-sm text-red-600 sm:ml-32 sm:pl-3">{typeError}</p>}
+              {newTypeError && <p className="text-sm text-red-600 sm:ml-32 sm:pl-3">{newTypeError}</p>}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3">
+                <label htmlFor="item-due-date" className="text-sm font-medium text-gray-700 sm:w-32 shrink-0">Data de entrega</label>
+                <input id="item-due-date" type="date" value={displayDate} onChange={(e) => handleSaveDate(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-primary text-sm w-full sm:w-auto sm:min-w-[180px]" />
+              </div>
+              {dateError && <p className="text-sm text-red-600 sm:ml-32 sm:pl-3">{dateError}</p>}
+              <p className="text-sm text-gray-500 sm:ml-32 sm:pl-3">Atual: {fmtDate(item.due_date)}</p>
             </div>
-            {typeError && <p className="text-sm text-red-600 mt-1">{typeError}</p>}
-            {newTypeError && <p className="text-sm text-red-600 mt-1">{newTypeError}</p>}
-            <div className="mt-3">
-              <label className="text-sm font-medium text-gray-700">Data de entrega</label>
-              <input type="date" value={displayDate} onChange={(e) => handleSaveDate(e.target.value)} className="mt-1 w-full sm:w-auto border border-gray-200 rounded-lg px-3 py-2 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
-              {dateError && <p className="text-sm text-red-600 mt-1">{dateError}</p>}
-              <p className="text-sm text-gray-500 mt-1">Atual: {fmtDate(item.due_date)}</p>
-            </div>
-            <div className="flex items-center gap-2 mt-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap pt-1">
               {item.item_type && <Badge active>{item.item_type.name}</Badge>}
-              <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600">{item.status}</span>
+              <span className="text-xs px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 font-medium capitalize">{item.status}</span>
               {item.tags?.map((t) => (
-                <span key={t.id} className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600" style={t.color ? { backgroundColor: t.color + '22', color: t.color } : undefined}>{t.name}</span>
+                <span key={t.id} className="text-xs px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 font-medium" style={t.color ? { backgroundColor: t.color + '22', color: t.color } : undefined}>{t.name}</span>
               ))}
             </div>
-            {item.parent_id != null && <p className="text-xs text-gray-500 mt-2">Filho de #{item.parent_id} — <Link to={`/itens/${item.parent_id}`} className="text-primary hover:underline">ver pai</Link></p>}
+            {item.parent_id != null && <p className="text-xs text-gray-500">Filho de #{item.parent_id} — <Link to={`/itens/${item.parent_id}`} className="text-primary hover:underline">ver pai</Link></p>}
           </div>
-          <div className="flex flex-col gap-2 shrink-0">
-            <Button variant="ghost" onClick={() => setConfirmArchive(true)} className="min-h-[44px]">Arquivar</Button>
-            <Button variant="danger" onClick={() => setConfirmDelete(true)} className="min-h-[44px]">Excluir</Button>
+          <div className="flex flex-row sm:flex-col gap-2 shrink-0 sm:min-w-[120px]">
+            <Button variant="ghost" onClick={() => setConfirmArchive(true)} className="flex-1 sm:flex-none justify-center">Arquivar</Button>
+            <Button variant="danger" onClick={() => setConfirmDelete(true)} className="flex-1 sm:flex-none justify-center">Excluir</Button>
           </div>
         </div>
       </Card>
@@ -318,14 +323,20 @@ export default function ItemDetail() {
       </FeatureSection>
 
       <FeatureSection title="Sub-Board" enabled={hasBoard} onToggle={async (v) => {
-        if (v && !hasBoard) {
-          setFeatureError('')
-          try {
+        setFeatureError('')
+        try {
+          if (v && !hasBoard) {
             await apiFetch(`/api/v1/items/${id}/board`, { method: 'POST' })
-            qc.invalidateQueries({ queryKey: ['item', id] })
-          } catch (e: any) {
-            setFeatureError(e?.detail ?? e?.message ?? 'Erro ao ativar board')
+          } else if (!v && hasBoard) {
+            await apiFetch(`/api/v1/items/${id}/board`, { method: 'DELETE' })
+          } else {
+            return
           }
+          qc.invalidateQueries({ queryKey: ['item', id] })
+          qc.invalidateQueries({ queryKey: ['items'] })
+          qc.invalidateQueries({ queryKey: ['boards'] })
+        } catch (e: any) {
+          setFeatureError(e?.detail ?? e?.message ?? (v ? 'Erro ao ativar board' : 'Erro ao desativar board'))
         }
       }}>
         <SubBoardSection hasBoard={hasBoard} boardId={item.board_id ?? item.board?.id} />

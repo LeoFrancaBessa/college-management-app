@@ -103,3 +103,9 @@ def remove_tag(item_id: int, tag_id: int, db: Session = Depends(get_db)):
 def enable_board(item_id: int, db: Session = Depends(get_db)):
     item = item_service.get_item(db, item_id)
     return item_service.enable_board(db, item)
+
+
+@router.delete("/{item_id}/board", status_code=204)
+def disable_board(item_id: int, db: Session = Depends(get_db)):
+    item = item_service.get_item(db, item_id)
+    item_service.disable_board(db, item)
