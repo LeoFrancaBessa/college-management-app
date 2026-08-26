@@ -34,18 +34,18 @@ export function AppShell() {
     <div className="min-h-screen bg-gray-50 flex">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="lg:hidden h-14 bg-white border-b border-gray-200 flex items-center px-4 justify-between">
-          <span className="font-semibold">College</span>
-          <div className="flex items-center gap-2">
+        <header className="lg:hidden h-14 bg-white border-b border-gray-200 flex items-center px-4 justify-between gap-2">
+          <span className="font-semibold text-gray-900 shrink-0">College</span>
+          <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={handleLogout}
-              className="text-sm px-3 py-2 rounded-lg border border-gray-200 min-h-[44px]"
+              className="text-sm px-3 py-2 rounded-lg border border-gray-200 min-h-[44px] hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition"
             >
               Sair
             </button>
             <button
               onClick={() => setAiOpen(true)}
-              className="bg-primary text-white px-3 py-1 rounded-full text-sm min-h-[44px]"
+              className="bg-primary text-white px-3 py-2 rounded-full text-sm min-h-[44px] min-w-[44px] hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 transition"
             >
               IA
             </button>
@@ -58,7 +58,7 @@ export function AppShell() {
           <span className="text-sm text-gray-600 truncate">{me?.email ?? ''}</span>
           <button
             onClick={handleLogout}
-            className="text-sm px-3 py-2 rounded-lg border border-gray-200 min-h-[44px]"
+            className="text-sm px-3 py-2 rounded-lg border border-gray-200 min-h-[44px] hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition"
           >
             Sair
           </button>

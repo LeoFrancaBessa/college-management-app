@@ -2,6 +2,7 @@ import { useState } from 'react'
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
+import listPlugin from '@fullcalendar/list'
 import interactionPlugin from '@fullcalendar/interaction'
 
 type Props = {
@@ -20,7 +21,7 @@ function getInitialView(): string {
   } catch {
     // ignore
   }
-  return window.innerWidth < 1024 ? 'timeGridWeek' : 'dayGridMonth'
+  return window.innerWidth < 1024 ? 'listWeek' : 'dayGridMonth'
 }
 
 export function ScheduleCalendar({ events, onEventClick, onDateClick }: Props) {
@@ -41,7 +42,7 @@ export function ScheduleCalendar({ events, onEventClick, onDateClick }: Props) {
 
   return (
     <FC
-      plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+      plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
       initialView={initialView}
       timeZone="UTC"
       events={events}
@@ -53,12 +54,13 @@ export function ScheduleCalendar({ events, onEventClick, onDateClick }: Props) {
       headerToolbar={{
         left: 'prev,next today',
         center: 'title',
-        right: 'dayGridMonth,timeGridWeek',
+        right: 'dayGridMonth,timeGridWeek,listWeek',
       }}
       buttonText={{
         today: 'hoje',
         month: 'mês',
         week: 'semana',
+        list: 'lista',
       }}
       locale="pt-br"
     />

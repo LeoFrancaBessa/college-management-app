@@ -222,7 +222,7 @@ export default function PeriodDetail() {
         {lc ? (
           <SkeletonList count={2} />
         ) : !courses?.length ? (
-          <EmptyState title="Nenhuma cadeira neste período" description="Crie a primeira cadeira acima." />
+          <EmptyState title="Nenhuma cadeira neste período" description="Crie a primeira cadeira acima ou use Ctrl+K / Cmd+K." />
         ) : (
           <div className="space-y-3">
             {courses.map((c) => (

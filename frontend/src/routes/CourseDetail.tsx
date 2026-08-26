@@ -252,7 +252,11 @@ function ListaTab({ courseId }: { courseId: number }) {
         </Card>
       )}
       {!items?.length ? (
-        <EmptyState title="Nenhum item nesta cadeira" description="Crie o primeiro item acima." />
+        <EmptyState
+          title="Nenhum item nesta cadeira"
+          description="Crie o primeiro item acima ou use Ctrl+K / Cmd+K para o assistente IA."
+          action={<Button onClick={() => setShowForm(true)}>Criar item</Button>}
+        />
       ) : (
         <Card>
           {items.map((it) => <ItemRow key={it.id} item={it} allItems={items} />)}
