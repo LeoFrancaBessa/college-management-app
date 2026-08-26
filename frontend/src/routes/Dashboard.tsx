@@ -3,10 +3,12 @@ import { Link } from 'react-router-dom'
 import { usePeriods, useCreatePeriod } from '../api/periods'
 import { useCourses } from '../api/courses'
 import { useHomepage } from '../api/schedule'
+import { doExport, useImport } from '../api/export'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Skeleton, SkeletonList } from '../components/ui/Skeleton'
 import { EmptyState } from '../components/ui/EmptyState'
+import { useToast } from '../components/ui/Toast'
 import { fmtDate } from '../lib/formatDate'
 
 function HomepageSection() {
@@ -101,6 +103,9 @@ export default function Dashboard() {
   const [periodStart, setPeriodStart] = useState('')
   const [periodEnd, setPeriodEnd] = useState('')
   const [error, setError] = useState('')
+  const toast = useToast()
+  const importMut = useImport()
+  const [exporting, setExporting] = useState(false)
 
   const handleCreatePeriod = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -230,6 +235,56 @@ export default function Dashboard() {
             ))}
           </div>
         )}
+      </section>
+
+      {/* Export / Import (RF-40) — spec allows Dashboard or TrashPage; expose in both for discoverability */}
+      <section>
+        <Card>
+          <h2 className="text-sm font-semibold text-gray-900">Backup</h2>
+          <p className="text-xs text-gray-500 mt-1">Exporte todos os dados em JSON ou restaure a partir de um dump (RF-40).</p>
+          <div className="mt-4 flex flex-col sm:flex-row gap-3">
+            <Button
+              onClick={async () => {
+                setExporting(true)
+                try {
+                  await doExport()
+                  toast('Exportado com sucesso', 'success')
+                } catch (e: any) {
+                  toast(e?.message ?? 'Erro ao exportar', 'error')
+                } finally {
+                  setExporting(false)
+                }
+              }}
+              disabled={exporting}
+              className="min-h-[44px]"
+            >
+              {exporting ? 'Exportando…' : 'Exportar JSON'}
+            </Button>
+            <label className="inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium bg-gray-100 text-gray-900 hover:bg-gray-200 transition min-h-[44px] cursor-pointer">
+              {importMut.isPending ? 'Importando…' : 'Importar JSON'}
+              <input
+                type="file"
+                accept=".json,application/json"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0]
+                  if (!file) return
+                  try {
+                    const res = await importMut.mutateAsync(file)
+                    const imported = (res as any)?.imported
+                    const summary = imported ? Object.entries(imported).map(([k, v]) => `${k}: ${v}`).join(', ') : ''
+                    toast(`Import concluído${summary ? ` — ${summary}` : ''}`, 'success')
+                  } catch (err: any) {
+                    toast(err?.detail ?? err?.message ?? 'Erro ao importar', 'error')
+                  } finally {
+                    e.target.value = ''
+                  }
+                }}
+                disabled={importMut.isPending}
+              />
+            </label>
+          </div>
+        </Card>
       </section>
     </div>
   )
