@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, lazy, Suspense } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { useItem, useUpdateItem, useCreateItem, useArchiveItem, useDeleteItem, useItems } from '../api/items'
 import { useCourse } from '../api/courses'
@@ -6,7 +6,7 @@ import { usePeriod } from '../api/periods'
 import { useItemTypes } from '../api/itemTypes'
 import { useTags, useSetItemTags } from '../api/tags'
 import { Card } from '../components/ui/Card'
-import { SkeletonList } from '../components/ui/Skeleton'
+import { Skeleton, SkeletonList } from '../components/ui/Skeleton'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
@@ -21,18 +21,19 @@ import { fmtDate } from '../lib/formatDate'
 import { ApiError, apiFetch } from '../api/client'
 import { useQueryClient } from '@tanstack/react-query'
 
+const BoardView = lazy(() => import('../components/board/BoardView'))
+
 function SubBoardSection({ hasBoard, boardId }: { hasBoard: boolean; boardId?: number | null }) {
   if (!hasBoard) {
     return <p className="text-sm text-gray-500">Board não ativado neste item — ative pelo toggle acima para organizar os filhos em colunas.</p>
   }
+  if (!boardId) {
+    return <p className="text-sm text-gray-500">Board ativo — carregando…</p>
+  }
   return (
-    <div className="space-y-2">
-      {boardId ? (
-        <div className="text-sm text-gray-500">Board #{boardId} — BoardView em breve (Task 7).</div>
-      ) : (
-        <div className="text-sm text-gray-500">Sub-Board ativo — BoardView em breve.</div>
-      )}
-    </div>
+    <Suspense fallback={<Skeleton className="h-40 w-full" />}>
+      <BoardView boardId={boardId} />
+    </Suspense>
   )
 }
 

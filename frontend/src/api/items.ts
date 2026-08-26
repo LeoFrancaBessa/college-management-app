@@ -21,17 +21,44 @@ export function useUpdateItem(id:number){
 }
 export function useMoveItem(id:number){
   const qc=useQueryClient()
-  return useMutation({ mutationFn:(b:{parent_id:number|null})=> apiFetch<Item>(`/api/v1/items/${id}/move`,{method:'POST', body:JSON.stringify(b)}), onSuccess:()=> qc.invalidateQueries({queryKey:['items']})})
+  return useMutation({
+    mutationFn:(b:{parent_id:number|null})=> apiFetch<Item>(`/api/v1/items/${id}/move`,{method:'POST', body:JSON.stringify(b)}),
+    onSuccess:()=> { qc.invalidateQueries({queryKey:['items']}); qc.invalidateQueries({queryKey:['boards']}); qc.invalidateQueries({queryKey:['schedule']}); qc.invalidateQueries({queryKey:['homepage']}) },
+  })
 }
 export function useSetBoardColumn(id:number){
   const qc=useQueryClient()
-  return useMutation({ mutationFn:(b:{board_column_id:number})=> apiFetch<Item>(`/api/v1/items/${id}/board-column`,{method:'PUT', body:JSON.stringify(b)}), onSuccess:()=> { qc.invalidateQueries({queryKey:['items']}); qc.invalidateQueries({queryKey:['boards']})}})
+  return useMutation({
+    mutationFn:(b:{board_column_id:number|null})=> apiFetch<Item>(`/api/v1/items/${id}/board-column`,{method:'PUT', body:JSON.stringify(b)}),
+    onSuccess:()=> { qc.invalidateQueries({queryKey:['items']}); qc.invalidateQueries({queryKey:['boards']}); qc.invalidateQueries({queryKey:['schedule']}) },
+  })
 }
 export function useArchiveItem(){
   const qc=useQueryClient()
-  return useMutation({ mutationFn:(id:number)=> apiFetch<Item>(`/api/v1/items/${id}/archive`,{method:'POST'}), onSuccess:()=> qc.invalidateQueries({queryKey:['items']})})
+  return useMutation({
+    mutationFn:(id:number)=> apiFetch<Item>(`/api/v1/items/${id}/archive`,{method:'POST'}),
+    onSuccess:()=> {
+      qc.invalidateQueries({queryKey:['items']})
+      qc.invalidateQueries({queryKey:['item']})
+      qc.invalidateQueries({queryKey:['schedule']})
+      qc.invalidateQueries({queryKey:['homepage']})
+      qc.invalidateQueries({queryKey:['courseAverage']})
+      qc.invalidateQueries({queryKey:['boards']})
+    },
+  })
 }
 export function useDeleteItem(){
   const qc=useQueryClient()
-  return useMutation({ mutationFn:(id:number)=> apiFetch<void>(`/api/v1/items/${id}`,{method:'DELETE'}), onSuccess:()=> qc.invalidateQueries({queryKey:['items']})})
+  return useMutation({
+    mutationFn:(id:number)=> apiFetch<void>(`/api/v1/items/${id}`,{method:'DELETE'}),
+    onSuccess:()=> {
+      qc.invalidateQueries({queryKey:['items']})
+      qc.invalidateQueries({queryKey:['item']})
+      qc.invalidateQueries({queryKey:['schedule']})
+      qc.invalidateQueries({queryKey:['homepage']})
+      qc.invalidateQueries({queryKey:['courseAverage']})
+      qc.invalidateQueries({queryKey:['boards']})
+      qc.invalidateQueries({queryKey:['trash']})
+    },
+  })
 }

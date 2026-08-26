@@ -26,9 +26,20 @@ type Props = { boardId: number }
 
 export default function BoardView({ boardId }: Props) {
   const { data: board, isLoading: lb, error: eb } = useBoard(boardId)
+  const boardItemsParams: Record<string, number> = {}
+  let boardItemsEnabled = false
+  if (board) {
+    if (board.course_id != null) {
+      boardItemsParams.course_id = board.course_id
+      boardItemsEnabled = true
+    } else if (board.item_id != null) {
+      boardItemsParams.parent_id = board.item_id
+      boardItemsEnabled = true
+    }
+  }
   const { data: itemsData, isLoading: li } = useItems(
-    board?.course_id ? { course_id: board.course_id } : {},
-    { enabled: !!board?.course_id },
+    boardItemsParams as any,
+    { enabled: boardItemsEnabled },
   )
   const updateBoard = useUpdateBoard(boardId)
   const createCol = useCreateColumn(boardId)
