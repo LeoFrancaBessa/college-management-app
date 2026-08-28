@@ -1,10 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch, buildQuery } from './client'
 import type { Item } from './types'
-export function useItems(p:{course_id?:number; parent_id?:number; include_archived?:boolean; include_trash?:boolean; limit?:number; offset?:number}={}, opts:{enabled?:boolean}={}){
+export function useItems(p:{course_id?:number; parent_id?:number; top_level_only?:boolean; include_archived?:boolean; include_trash?:boolean; limit?:number; offset?:number}={}, opts:{enabled?:boolean}={}){
   return useQuery({ queryKey:['items', p], queryFn: ()=> apiFetch<Item[]>(`/api/v1/items${buildQuery(p as any)}`), enabled: opts.enabled ?? true })
 }
-export function useItem(id:number){ return useQuery({ queryKey:['item', id], queryFn: ()=> apiFetch<Item>(`/api/v1/items/${id}`)})}
+export function useItem(id:number, opts:{enabled?:boolean}={}){ return useQuery({ queryKey:['item', id], queryFn: ()=> apiFetch<Item>(`/api/v1/items/${id}`), enabled: opts.enabled ?? true })}
 export function useCreateItem(){
   const qc=useQueryClient()
   return useMutation({

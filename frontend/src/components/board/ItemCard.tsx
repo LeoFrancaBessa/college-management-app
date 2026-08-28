@@ -26,10 +26,20 @@ export default function ItemCard({ item, columns, isCoarse }: Props) {
   }
   const toast = useToast()
   const setCol = useSetBoardColumn(item.id)
+  const systemColumn = columns.find((column) => column.is_system)
 
   const handleSelectMove = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value
     if (val === '') return
+    if (val === 'unassigned') {
+      try {
+        await setCol.mutateAsync({ board_column_id: null })
+      } catch (err: any) {
+        const msg = err instanceof ApiError ? err.detail : err?.detail ?? err?.message ?? 'Erro ao mover'
+        toast(msg, 'error')
+      }
+      return
+    }
     const destId = Number(val)
     if (Number.isNaN(destId)) return
     try {
@@ -65,14 +75,14 @@ export default function ItemCard({ item, columns, isCoarse }: Props) {
         <div className="mt-3">
           <label className="text-xs font-medium text-gray-700">Mover para...</label>
           <select
-            value={item.board_column_id ? String(item.board_column_id) : ''}
+            value={item.board_column_id ? String(item.board_column_id) : (systemColumn ? 'unassigned' : '')}
             onChange={handleSelectMove}
             disabled={setCol.isPending}
             className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-primary bg-white text-sm"
           >
             <option value="">Selecione coluna</option>
             {columns.map((c) => (
-              <option key={c.id} value={String(c.id)}>{c.name}</option>
+              <option key={c.id} value={c.is_system ? 'unassigned' : String(c.id)}>{c.name}</option>
             ))}
           </select>
         </div>

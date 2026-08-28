@@ -405,15 +405,18 @@ def test_board_service_via_api_and_direct():
     db = SessionLocal()
     b = board_service.get_board(db, board_id)
     assert b is not None
+    assert b.columns[0].is_system is True
     # get_column
     col = b.columns[0]
     col2 = board_service.get_column(db, board_id, col.id)
     assert col2.id == col.id
+    with pytest.raises(Exception): board_service.update_column(db, col, BoardColumnUpdate(name="Outro"))
+    with pytest.raises(Exception): board_service.delete_column(db, col)
     with pytest.raises(Exception): board_service.get_column(db, board_id, 999999)
     with pytest.raises(Exception): board_service.get_column(db, 999999, col.id)
     with pytest.raises(Exception): board_service.get_board(db, 999999)
     # update_layout
-    from app.schemas.board import BoardLayoutUpdate
+    from app.schemas.board import BoardColumnUpdate, BoardLayoutUpdate
     updated = board_service.update_layout(db, b, BoardLayoutUpdate(layout="list"))
     assert updated.layout.value == "list"
     updated2 = board_service.update_layout(db, b, BoardLayoutUpdate(layout="kanban"))
@@ -436,12 +439,12 @@ def test_board_service_via_api_and_direct():
     from app.models.item import Item
     itm = db2.get(Item, item["id"])
     nb = board_service.build_default_board(item=itm)
-    assert len(nb.columns) == 3
+    assert len(nb.columns) == 4
     # build for course
     from app.models.course import Course
     crs = db2.get(Course, c["id"])
     nb2 = board_service.build_default_board(course=crs)
-    assert len(nb2.columns) == 3
+    assert len(nb2.columns) == 4
     db.close(); db2.close()
     # via API
     r = client.get(f"{API}/boards/{board_id}")
@@ -1099,6 +1102,7 @@ def test_api_extra_branches():
     cli3 = _client_with_db(Sess3)
     per3 = cli3.post(f"{API}/periods", json={"name": "P3"}).json()
     crs3 = cli3.post(f"{API}/courses", json={"name": "C3", "period_id": per3["id"]}).json()
+    assert crs3["board"]["course_id"] == crs3["id"]
     it3 = cli3.post(f"{API}/item-types", json={"name": "T3"}).json()
     # create top-level ok
     itm = cli3.post(f"{API}/items", json={"title": "Top", "item_type_id": it3["id"], "course_id": crs3["id"]}).json()
@@ -1171,11 +1175,11 @@ def test_api_extra_branches():
     # create another course to get unrelated board column
     per4 = cli3.post(f"{API}/periods", json={"name": "P4"}).json()
     crs4 = cli3.post(f"{API}/courses", json={"name": "C4", "period_id": per4["id"]}).json()
-    other_col = crs4["board"]["columns"][0]["id"]
+    other_col = crs4["board"]["columns"][1]["id"]
     r = cli3.put(f"{API}/items/{itm['id']}/board-column", json={"board_column_id": other_col})
     assert r.status_code == 400
     # valid column
-    valid_col = board_id and crs3["board"]["columns"][0]["id"]
+    valid_col = board_id and crs3["board"]["columns"][1]["id"]
     r = cli3.put(f"{API}/items/{itm['id']}/board-column", json={"board_column_id": valid_col})
     assert r.status_code == 200
     # clear

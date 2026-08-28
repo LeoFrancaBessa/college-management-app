@@ -19,6 +19,7 @@ class BoardColumnRead(BaseModel):
     id: int
     name: str
     position: int
+    is_system: bool
 
 
 class BoardLayoutUpdate(BaseModel):
@@ -29,5 +30,7 @@ class BoardRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    course_id: int | None = None
+    item_id: int | None = None
     layout: BoardLayout
     columns: list[BoardColumnRead] = []

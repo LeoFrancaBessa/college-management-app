@@ -26,11 +26,12 @@ type Props = { boardId: number }
 
 export default function BoardView({ boardId }: Props) {
   const { data: board, isLoading: lb, error: eb } = useBoard(boardId)
-  const boardItemsParams: Record<string, number> = {}
+  const boardItemsParams: Record<string, number | boolean> = {}
   let boardItemsEnabled = false
   if (board) {
     if (board.course_id != null) {
       boardItemsParams.course_id = board.course_id
+      boardItemsParams.top_level_only = true
       boardItemsEnabled = true
     } else if (board.item_id != null) {
       boardItemsParams.parent_id = board.item_id
@@ -48,6 +49,7 @@ export default function BoardView({ boardId }: Props) {
 
   const [newColName, setNewColName] = useState('')
   const [colError, setColError] = useState('')
+  const [createColumnOpen, setCreateColumnOpen] = useState(false)
   const [coarse, setCoarse] = useState(false)
   const [localItems, setLocalItems] = useState<Item[]>([])
 
@@ -70,12 +72,13 @@ export default function BoardView({ boardId }: Props) {
   if (!board) return <EmptyState title="Board não encontrado" />
 
   const columns = [...(board.columns ?? [])].sort((a, b) => a.position - b.position)
+  const systemColumn = columns.find((column) => column.is_system)
 
   const itemsByCol = new Map<number | null, Item[]>()
   for (const col of columns) itemsByCol.set(col.id, [])
   itemsByCol.set(null, [])
   for (const it of localItems) {
-    const colId = it.board_column_id ?? null
+    const colId = it.board_column_id ?? systemColumn?.id ?? null
     if (colId !== null && !itemsByCol.has(colId)) {
       // column deleted or not in this board — treat as unassigned
       itemsByCol.get(null)!.push(it)
@@ -94,6 +97,7 @@ export default function BoardView({ boardId }: Props) {
     try {
       await createCol.mutateAsync({ name: newColName.trim() })
       setNewColName('')
+      setCreateColumnOpen(false)
     } catch (err: any) {
       setColError(err?.detail ?? err?.message ?? 'Erro ao criar coluna')
     }
@@ -118,37 +122,28 @@ export default function BoardView({ boardId }: Props) {
     const activeItemId = Number(activeIdStr)
     if (!Number.isFinite(activeItemId)) return
 
-    let destColumnId: number | null = null
+    let destColumnId: number | null | undefined
     if (overIdStr.startsWith('col-')) {
-      destColumnId = Number(overIdStr.slice(4))
+      const destinationColumn = columns.find((column) => column.id === Number(overIdStr.slice(4)))
+      destColumnId = destinationColumn?.is_system ? null : destinationColumn?.id
     } else {
       const overItemId = Number(overIdStr)
       if (Number.isFinite(overItemId)) {
         const overItem = localItems.find((x) => x.id === overItemId)
         if (overItem) {
           destColumnId = overItem.board_column_id ?? null
-          if (destColumnId == null) {
-            // over item might be unassigned; try to find its column via bucket
-            for (const col of columns) {
-              const bucket = itemsByCol.get(col.id) ?? []
-              if (bucket.some((x) => x.id === overItemId)) {
-                destColumnId = col.id
-                break
-              }
-            }
-          }
         } else {
           for (const col of columns) {
             const bucket = itemsByCol.get(col.id) ?? []
             if (bucket.some((x) => String(x.id) === overIdStr)) {
-              destColumnId = col.id
+              destColumnId = col.is_system ? null : col.id
               break
             }
           }
         }
       }
     }
-    if (destColumnId == null || !Number.isFinite(destColumnId)) return
+    if (destColumnId === undefined || (destColumnId !== null && !Number.isFinite(destColumnId))) return
 
     const prevItems = [...localItems]
     setLocalItems((curr) => curr.map((it) => (it.id === activeItemId ? { ...it, board_column_id: destColumnId } : it)))
@@ -183,17 +178,32 @@ export default function BoardView({ boardId }: Props) {
             <option value="lista">lista</option>
           </select>
         </div>
-        <form onSubmit={handleCreateColumn} className="flex items-center gap-2 flex-1 sm:flex-none">
-          <input
-            value={newColName}
-            onChange={(e) => setNewColName(e.target.value)}
-            placeholder="Nova coluna"
-            className="flex-1 sm:w-48 border border-gray-200 rounded-lg px-3 py-2 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-          />
-          <Button type="submit" disabled={createCol.isPending} className="shrink-0">Add column</Button>
-        </form>
+        <Button onClick={() => { setColError(''); setCreateColumnOpen(true) }}>Adicionar coluna</Button>
       </div>
-      {colError && <p className="text-sm text-red-600">{colError}</p>}
+      {createColumnOpen && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" role="presentation" onClick={() => { setCreateColumnOpen(false); setNewColName(''); setColError('') }}>
+          <div className="bg-white rounded-xl p-6 max-w-sm w-full shadow-lg" role="dialog" aria-modal="true" aria-label="Adicionar coluna" onClick={(event) => event.stopPropagation()}>
+            <h3 className="font-semibold text-gray-900">Adicionar coluna</h3>
+            <form onSubmit={handleCreateColumn} className="mt-4">
+              <label className="block text-sm font-medium text-gray-700">
+                Nome da coluna
+                <input
+                  value={newColName}
+                  onChange={(event) => setNewColName(event.target.value)}
+                  placeholder="Ex.: Em revisão"
+                  className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                  autoFocus
+                />
+              </label>
+              {colError && <p className="text-sm text-red-600 mt-2">{colError}</p>}
+              <div className="flex justify-end gap-2 mt-5">
+                <Button type="button" variant="ghost" onClick={() => { setCreateColumnOpen(false); setNewColName(''); setColError('') }}>Cancelar</Button>
+                <Button type="submit" disabled={createCol.isPending}>{createCol.isPending ? 'Adicionando…' : 'Adicionar'}</Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {columns.length === 0 ? (
         <Card><EmptyState title="Nenhuma coluna" description="Crie a primeira coluna acima." /></Card>

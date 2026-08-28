@@ -37,10 +37,12 @@ def test_create_course_generates_default_board(client):
     course = resp.json()
     assert course["board"]["layout"] == "kanban"
     assert [c["name"] for c in course["board"]["columns"]] == [
+        "Sem Definição",
         "A fazer",
         "Em andamento",
         "Concluído",
     ]
+    assert course["board"]["columns"][0]["is_system"] is True
 
 
 def test_create_course_for_missing_period_returns_404(client):
@@ -200,8 +202,8 @@ def test_enable_board_on_item_and_move_item_into_column(client):
     resp = client.post(f"{API}/items/{project['id']}/board")
     assert resp.status_code == 201
     board = resp.json()
-    assert len(board["columns"]) == 3
-    column_id = board["columns"][0]["id"]
+    assert len(board["columns"]) == 4
+    column_id = board["columns"][1]["id"]
 
     stage = client.post(
         f"{API}/items",
@@ -230,7 +232,7 @@ def test_board_column_from_unrelated_board_is_rejected(client):
             "course_id": course_a["id"],
         },
     ).json()
-    column_from_course_b = course_b["board"]["columns"][0]["id"]
+    column_from_course_b = course_b["board"]["columns"][1]["id"]
 
     resp = client.put(
         f"{API}/items/{item_a['id']}/board-column",

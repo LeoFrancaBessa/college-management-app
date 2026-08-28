@@ -1,4 +1,4 @@
-from sqlalchemy import CheckConstraint, ForeignKey, Integer, String
+from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -49,6 +49,7 @@ class BoardColumn(Base):
     board_id: Mapped[int] = mapped_column(ForeignKey("boards.id", ondelete="CASCADE"))
     name: Mapped[str] = mapped_column(String(100))
     position: Mapped[int] = mapped_column(Integer, default=0)
+    is_system: Mapped[bool] = mapped_column(Boolean, default=False)
 
     board: Mapped["Board"] = relationship(back_populates="columns")
     items: Mapped[list["Item"]] = relationship(back_populates="board_column")

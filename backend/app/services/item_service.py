@@ -47,14 +47,16 @@ def _resolve_owner_board(db: Session, course_id: int, parent: Item | None) -> Bo
 
 def _validate_board_column(
     db: Session, board_column_id: int, course_id: int, parent: Item | None
-) -> int:
+) -> int | None:
     column = db.get(BoardColumn, board_column_id)
     if column is None:
         raise NotFoundError(f"BoardColumn {board_column_id} not found")
     owner_board = _resolve_owner_board(db, course_id, parent)
     if owner_board is None or column.board_id != owner_board.id:
         raise ValidationError("board_column_id does not belong to the item's board")
-    return column.id
+    # The system column is the visual home for unassigned items. Persist those
+    # items as NULL so they remain semantically without a defined column.
+    return None if column.is_system else column.id
 
 
 def create_item(db: Session, data: ItemCreate) -> Item:

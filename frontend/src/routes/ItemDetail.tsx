@@ -44,6 +44,7 @@ export default function ItemDetail() {
   const { data: item, isLoading, error } = useItem(valid ? id : 0)
   const courseId = item?.course_id
   const { data: course } = useCourse(courseId ?? 0)
+  const { data: parent } = useItem(item?.parent_id ?? 0, { enabled: item?.parent_id != null })
   const periodId = course?.period_id
   const { data: period } = usePeriod(periodId ?? 0)
   const { data: itemTypes } = useItemTypes()
@@ -125,6 +126,8 @@ export default function ItemDetail() {
   const notesEnabled = features.notes != null
   const recurrenceEnabled = features.recurrence != null
   const hasBoard = !!item.board || item.board_id != null
+  const boardColumns = item.parent_id == null ? course?.board?.columns ?? [] : parent?.board?.columns ?? []
+  const boardColumn = item.board_column_id == null ? undefined : boardColumns.find((column) => column.id === item.board_column_id)
 
   const openEdit = () => {
     if (!item) return
@@ -272,6 +275,7 @@ export default function ItemDetail() {
             </div>
             <div className="flex items-center gap-2 flex-wrap pt-1">
               {item.item_type && <Badge active>{item.item_type.name}</Badge>}
+              {boardColumn && !boardColumn.is_system && <span className="text-xs px-2.5 py-1 rounded-full bg-primary-50 text-gray-700 font-medium">{boardColumn.name}</span>}
               {item.tags?.map((t) => (
                 <span key={t.id} className="text-xs px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 font-medium" style={t.color ? { backgroundColor: t.color + '22', color: t.color } : undefined}>{t.name}</span>
               ))}

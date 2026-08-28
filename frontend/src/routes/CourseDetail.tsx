@@ -8,7 +8,7 @@ import { EmptyState } from '../components/ui/EmptyState'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { Badge } from '../components/ui/Badge'
 import { useCourse, useUpdateCourse, useArchiveCourse, useDeleteCourse } from '../api/courses'
-import { useItems, useCreateItem, useUpdateItem, useArchiveItem, useDeleteItem, useMoveItem, useSetBoardColumn } from '../api/items'
+import { useItems, useCreateItem, useUpdateItem, useArchiveItem, useDeleteItem, useMoveItem } from '../api/items'
 import { useItemTypes } from '../api/itemTypes'
 import { useSchedule } from '../api/schedule'
 import { fmtDate } from '../lib/formatDate'
@@ -36,8 +36,8 @@ function BoardTab({ courseId }: { courseId: number }) {
   if (isLoading) return <Skeleton className="h-40 w-full" />
   if (error) return <EmptyState title="Erro ao carregar cadeira" description={(error as any)?.detail ?? (error as Error).message} />
   if (!course) return <EmptyState title="Cadeira não encontrada" />
-  if (!course.board_id) return <EmptyState title="Board não configurado" description="Esta cadeira ainda não possui board." />
-  return <BoardView boardId={course.board_id} />
+  if (!course.board) return <EmptyState title="Board não configurado" description="Esta cadeira ainda não possui board." />
+  return <BoardView boardId={course.board.id} />
 }
 
 function ChildrenRow({ parentId }: { parentId: number }) {
@@ -60,31 +60,67 @@ function ChildrenRow({ parentId }: { parentId: number }) {
   )
 }
 
-function ItemRow({ item, allItems }: { item: import('../api/types').Item; allItems: import('../api/types').Item[] }) {
+function ItemRow({ item, allItems, boardColumns, itemTypes }: { item: import('../api/types').Item; allItems: import('../api/types').Item[]; boardColumns: import('../api/types').BoardColumn[]; itemTypes: import('../api/types').ItemType[] }) {
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
-  const [editDateOpen, setEditDateOpen] = useState(false)
-  const [dateDraft, setDateDraft] = useState(item.due_date ? item.due_date.slice(0, 10) : '')
+  const [editOpen, setEditOpen] = useState(false)
+  const [editName, setEditName] = useState('')
+  const [editTypeId, setEditTypeId] = useState('')
+  const [editDate, setEditDate] = useState('')
+  const [editError, setEditError] = useState('')
   const [moveOpen, setMoveOpen] = useState(false)
   const [moveParentId, setMoveParentId] = useState<string>('')
   const [moveError, setMoveError] = useState('')
-  const [boardColDraft, setBoardColDraft] = useState(item.board_column_id ? String(item.board_column_id) : '')
-  const [boardColError, setBoardColError] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [expanded, setExpanded] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   const update = useUpdateItem(item.id)
   const move = useMoveItem(item.id)
-  const setCol = useSetBoardColumn(item.id)
   const archive = useArchiveItem()
   const del = useDeleteItem()
 
-  const handleSaveDate = async () => {
+  useEffect(() => {
+    if (!menuOpen) return
+
+    const closeMenu = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false)
+    }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false)
+    }
+
+    document.addEventListener('mousedown', closeMenu)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('mousedown', closeMenu)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [menuOpen])
+
+  const openEdit = () => {
+    setEditName(item.title)
+    setEditTypeId(String(item.item_type_id))
+    setEditDate(item.due_date ? item.due_date.slice(0, 10) : '')
+    setEditError('')
+    setMenuOpen(false)
+    setEditOpen(true)
+  }
+
+  const handleEditSave = async (event: React.FormEvent) => {
+    event.preventDefault()
+    setEditError('')
+    if (!editName.trim()) { setEditError('Título é obrigatório'); return }
+    if (!editTypeId) { setEditError('Tipo é obrigatório'); return }
     try {
-      await update.mutateAsync({ due_date: dateDraft ? new Date(dateDraft).toISOString() : null } as any)
-      setEditDateOpen(false)
-    } catch {
-      // validation errors surfaced via toast or inline; keep open
+      await update.mutateAsync({
+        title: editName.trim(),
+        item_type_id: Number(editTypeId),
+        due_date: editDate ? new Date(editDate).toISOString() : null,
+      } as any)
+      setEditOpen(false)
+    } catch (error: any) {
+      setEditError(error?.detail ?? error?.message ?? 'Erro ao salvar')
     }
   }
 
@@ -102,18 +138,6 @@ function ItemRow({ item, allItems }: { item: import('../api/types').Item; allIte
     }
   }
 
-  const handleSetColumn = async () => {
-    setBoardColError('')
-    const cid = boardColDraft.trim() === '' ? null : Number(boardColDraft)
-    if (boardColDraft.trim() !== '' && (cid == null || Number.isNaN(cid))) { setBoardColError('ID inválido'); return }
-    try {
-      await setCol.mutateAsync({ board_column_id: cid } as any)
-      setBoardColError('')
-    } catch (e: any) {
-      setBoardColError(e?.detail ?? e?.message ?? 'Erro ao mover coluna')
-    }
-  }
-
   const handleArchive = async () => {
     try { await archive.mutateAsync(item.id) } catch { /* handled */ }
     setMenuOpen(false)
@@ -123,6 +147,7 @@ function ItemRow({ item, allItems }: { item: import('../api/types').Item; allIte
   }
 
   const moveCandidates = allItems.filter((x) => x.id !== item.id)
+  const boardColumn = item.board_column_id == null ? undefined : boardColumns.find((column) => column.id === item.board_column_id)
 
   return (
     <div className="py-3 border-b border-gray-100 last:border-0">
@@ -135,7 +160,7 @@ function ItemRow({ item, allItems }: { item: import('../api/types').Item; allIte
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-medium text-gray-900 truncate">{item.title}</span>
             {item.item_type && <Badge>{item.item_type.name}</Badge>}
-            {item.board_column_id != null && <span className="text-xs px-2 py-0.5 rounded-full bg-primary-50 text-gray-700">col {item.board_column_id}</span>}
+            {boardColumn && !boardColumn.is_system && <span className="text-xs px-2 py-0.5 rounded-full bg-primary-50 text-gray-700">{boardColumn.name}</span>}
             {item.tags?.map((t) => (
               <span key={t.id} className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600" style={t.color ? { backgroundColor: t.color + '22', color: t.color } : undefined}>{t.name}</span>
             ))}
@@ -153,29 +178,11 @@ function ItemRow({ item, allItems }: { item: import('../api/types').Item; allIte
             </span>
           </div>
         </button>
-        <div className="relative shrink-0">
+        <div ref={menuRef} className="relative shrink-0">
           <button onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v) }} aria-label="menu" className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50">•••</button>
           {menuOpen && (
             <div className="absolute right-0 mt-1 w-64 bg-white border border-gray-200 rounded-xl shadow-lg z-10 p-2 space-y-1">
-              {!editDateOpen ? (
-                <button onClick={() => { setEditDateOpen(true); setDateDraft(item.due_date ? item.due_date.slice(0,10) : '') }} className="w-full text-left text-sm px-3 py-2 min-h-[44px] hover:bg-gray-50 rounded-lg">Editar data</button>
-              ) : (
-                <div className="px-2 py-1 space-y-2">
-                  <input type="date" value={dateDraft} onChange={(e) => setDateDraft(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
-                  <div className="flex gap-2">
-                    <Button onClick={handleSaveDate} disabled={update.isPending} className="flex-1">Salvar</Button>
-                    <Button variant="ghost" onClick={() => setEditDateOpen(false)} className="flex-1">Cancelar</Button>
-                  </div>
-                </div>
-              )}
-              <div className="px-2 py-1 space-y-1">
-                <p className="text-xs font-medium text-gray-700">Mover coluna (ID)</p>
-                <div className="flex gap-2">
-                  <input value={boardColDraft} onChange={(e) => setBoardColDraft(e.target.value)} placeholder="col id" className="flex-1 border border-gray-200 rounded-lg px-3 py-2 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
-                  <Button onClick={handleSetColumn} disabled={setCol.isPending} variant="ghost" className="shrink-0">Mover</Button>
-                </div>
-                {boardColError && <p className="text-xs text-red-600">{boardColError}</p>}
-              </div>
+              <button onClick={openEdit} className="w-full text-left text-sm px-3 py-2 min-h-[44px] hover:bg-gray-50 rounded-lg">Editar</button>
               {!moveOpen ? (
                 <button onClick={() => setMoveOpen(true)} className="w-full text-left text-sm px-3 py-2 min-h-[44px] hover:bg-gray-50 rounded-lg">Mover para...</button>
               ) : (
@@ -201,6 +208,34 @@ function ItemRow({ item, allItems }: { item: import('../api/types').Item; allIte
         </div>
       </div>
       {expanded && <ChildrenRow parentId={item.id} />}
+      {editOpen && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true" aria-label="Editar item" onClick={() => setEditOpen(false)}>
+          <div className="bg-white rounded-xl p-6 max-w-md w-full shadow-lg" onClick={(event) => event.stopPropagation()}>
+            <h3 className="font-semibold text-gray-900">Editar item</h3>
+            <form onSubmit={handleEditSave} className="mt-4 space-y-3">
+              <div>
+                <label className="text-sm font-medium text-gray-700">Título</label>
+                <input value={editName} onChange={(event) => setEditName(event.target.value)} className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-primary" autoFocus />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Tipo</label>
+                <select value={editTypeId} onChange={(event) => setEditTypeId(event.target.value)} className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-primary bg-white">
+                  {itemTypes.map((type) => <option key={type.id} value={String(type.id)}>{type.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Data de entrega</label>
+                <input type="date" value={editDate} onChange={(event) => setEditDate(event.target.value)} className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+              {editError && <p className="text-sm text-red-600">{editError}</p>}
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setEditOpen(false)} className="px-4 py-2 min-h-[44px] rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition">Cancelar</button>
+                <button type="submit" disabled={update.isPending} className="px-4 py-2 min-h-[44px] bg-primary text-white rounded-lg text-sm font-medium hover:brightness-95 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 transition">{update.isPending ? 'Salvando…' : 'Salvar'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       <ConfirmDialog open={confirmDelete} title="Excluir item" description="Excluir este item removerá também seus filhos (cascata). Esta ação não pode ser desfeita." confirmLabel="Excluir" onConfirm={handleDelete} onClose={() => setConfirmDelete(false)} />
     </div>
   )
@@ -208,6 +243,7 @@ function ItemRow({ item, allItems }: { item: import('../api/types').Item; allIte
 
 function ListaTab({ courseId }: { courseId: number }) {
   const { data: items, isLoading, error } = useItems({ course_id: courseId })
+  const { data: course } = useCourse(courseId)
   const { data: itemTypes } = useItemTypes()
   const create = useCreateItem()
   const [showForm, setShowForm] = useState(false)
@@ -271,7 +307,7 @@ function ListaTab({ courseId }: { courseId: number }) {
         />
       ) : (
         <Card>
-          {items.map((it) => <ItemRow key={it.id} item={it} allItems={items} />)}
+          {items.map((it) => <ItemRow key={it.id} item={it} allItems={items} boardColumns={course?.board?.columns ?? []} itemTypes={itemTypes ?? []} />)}
         </Card>
       )}
     </div>

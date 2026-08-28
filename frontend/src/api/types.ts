@@ -1,9 +1,9 @@
 export type Status = 'active' | 'archived' | 'trash'
 export type Period = { id: number; name: string; status: Status; start_date?: string | null; end_date?: string | null; created_at: string }
-export type Course = { id: number; period_id: number; name: string; description?: string | null; status: Status; board_id: number; created_at: string }
+export type Course = { id: number; period_id: number; name: string; description?: string | null; status: Status; board?: Board | null; created_at: string }
 export type Tag = { id: number; name: string; color?: string | null }
 export type ItemType = { id: number; name: string }
-export type BoardColumn = { id: number; board_id: number; name: string; position: number }
+export type BoardColumn = { id: number; board_id: number; name: string; position: number; is_system: boolean }
 export type Board = { id: number; course_id?: number | null; item_id?: number | null; layout: 'kanban' | 'sprint' | 'lista'; columns: BoardColumn[] }
 export type Grade = { score: number; max_score: number; weight: number }
 export type ChecklistItem = { text: string; done: boolean }
