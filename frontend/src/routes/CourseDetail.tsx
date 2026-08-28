@@ -47,7 +47,7 @@ function ChildrenRow({ parentId }: { parentId: number }) {
   return (
     <div className="pl-6 mt-2 space-y-2 border-l-2 border-gray-100 ml-2">
       {children.map((ch) => (
-        <Link key={ch.id} to={`/itens/${ch.id}`} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition cursor-pointer">
+        <Link key={ch.id} to={`/itens/${ch.id}`} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg cursor-pointer">
           <div className="min-w-0">
             <span className="text-sm font-medium text-gray-900 truncate">{ch.title}</span>
             <span className="text-xs text-gray-500 ml-2">{ch.item_type?.name ?? ''}</span>
@@ -130,7 +130,7 @@ function ItemRow({ item, allItems }: { item: import('../api/types').Item; allIte
         <button
           type="button"
           onClick={() => navigate(`/itens/${item.id}`)}
-          className="min-w-0 flex-1 text-left cursor-pointer rounded-lg -m-1 p-1 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition"
+          className="min-w-0 flex-1 text-left cursor-pointer rounded-lg -m-1 p-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-medium text-gray-900 truncate">{item.title}</span>
