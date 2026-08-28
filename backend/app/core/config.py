@@ -17,7 +17,9 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = 60 * 24 * 30  # 30 days
 
-    # AI provider (Google Gemini — see docs/architecture.md)
+    # AI provider (Vercel AI Gateway — meta/muse-spark-1.2-contributor)
+    VERCEL_AI_GATEWAY_API_KEY: str = ""
+    # Compat: fallback se .env antigo ainda tiver GEMINI_API_KEY
     GEMINI_API_KEY: str = ""
 
     # RF-19 — attachments (volume attachments:/app/attachments in docker-compose)

@@ -9,7 +9,6 @@ argon2-cffi
 pyjwt
 slowapi
 apscheduler
-google-generativeai
+httpx
 python-multipart
 pytest
-httpx

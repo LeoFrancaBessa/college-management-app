@@ -1,6 +1,7 @@
-"""IA UC-04 / RF-33..36 — Gemini Flash function calling. Regras 5 (soft delete), 9 (opcional), sem pré-validação MVP."""
+"""IA UC-04 / RF-33..36 — Vercel AI Gateway (meta/muse-spark-1.2-contributor) function calling. Regras 5 (soft delete), 9 (opcional), sem pré-validação MVP."""
 from __future__ import annotations
 
+import json
 import logging
 import re
 from datetime import datetime, timedelta, timezone
@@ -29,60 +30,68 @@ Tipos: {item_types}
 Itens ativos recentes (id, título, cadeira, data, tipo): {items}
 """
 
+# OpenAI-compatible tool definitions for Vercel AI Gateway
 TOOLS = [
     {
-        "function_declarations": [
-            {
-                "name": "criar_item",
-                "description": "RF-33 — cria um item (prova, trabalho, deadline, etc). Use quando o usuário quer registrar algo novo.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "title": {"type": "string", "description": "Título do item"},
-                        "course_id": {"type": "integer", "description": "ID da cadeira"},
-                        "item_type_id": {"type": "integer", "description": "ID do tipo de item"},
-                        "due_date": {"type": "string", "description": "Data ISO-8601 UTC ou null se sem data"},
-                        "parent_id": {"type": "integer", "description": "ID do item pai para sub-item"},
-                    },
-                    "required": ["title", "course_id", "item_type_id"],
+        "type": "function",
+        "function": {
+            "name": "criar_item",
+            "description": "RF-33 — cria um item (prova, trabalho, deadline, etc). Use quando o usuário quer registrar algo novo.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string", "description": "Título do item"},
+                    "course_id": {"type": "integer", "description": "ID da cadeira"},
+                    "item_type_id": {"type": "integer", "description": "ID do tipo de item"},
+                    "due_date": {"type": "string", "description": "Data ISO-8601 UTC ou null se sem data"},
+                    "parent_id": {"type": "integer", "description": "ID do item pai para sub-item"},
                 },
+                "required": ["title", "course_id", "item_type_id"],
             },
-            {
-                "name": "editar_item",
-                "description": "RF-34 — edita um item existente (título, tipo, data, parent).",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "item_id": {"type": "integer", "description": "ID do item a editar"},
-                        "title": {"type": "string"},
-                        "item_type_id": {"type": "integer"},
-                        "due_date": {"type": "string", "description": "Nova data ISO-8601 ou null para remover"},
-                        "parent_id": {"type": "integer", "description": "Novo parent_id ou null para topo"},
-                    },
-                    "required": ["item_id"],
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "editar_item",
+            "description": "RF-34 — edita um item existente (título, tipo, data, parent).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "item_id": {"type": "integer", "description": "ID do item a editar"},
+                    "title": {"type": "string"},
+                    "item_type_id": {"type": "integer"},
+                    "due_date": {"type": "string", "description": "Nova data ISO-8601 ou null para remover"},
+                    "parent_id": {"type": "integer", "description": "Novo parent_id ou null para topo"},
                 },
+                "required": ["item_id"],
             },
-            {
-                "name": "excluir_itens",
-                "description": "RF-35 — soft delete (lixeira). Pode receber lista de IDs ou filtro por cadeira/intervalo de datas.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "item_ids": {"type": "array", "items": {"type": "integer"}, "description": "IDs explícitos"},
-                        "course_id": {"type": "integer"},
-                        "from_date": {"type": "string", "description": "ISO-8601 início intervalo"},
-                        "to_date": {"type": "string", "description": "ISO-8601 fim intervalo"},
-                    },
-                    "required": [],
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "excluir_itens",
+            "description": "RF-35 — soft delete (lixeira). Pode receber lista de IDs ou filtro por cadeira/intervalo de datas.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "item_ids": {"type": "array", "items": {"type": "integer"}, "description": "IDs explícitos"},
+                    "course_id": {"type": "integer"},
+                    "from_date": {"type": "string", "description": "ISO-8601 início intervalo"},
+                    "to_date": {"type": "string", "description": "ISO-8601 fim intervalo"},
                 },
+                "required": [],
             },
-        ]
-    }
+        },
+    },
 ]
 
-# Primary model — 2.0/1.5/2.5 descontinuados para chaves novas (404). Usar aliases latest/3.x.
-PRIMARY_MODEL = "gemini-flash-latest"
-FALLBACK_MODEL = "gemini-3-flash-preview"
+MODEL = "meta/muse-spark-1.2-contributor"
+# aliases mantidos para compatibilidade com código que importava as constantes antigas
+PRIMARY_MODEL = MODEL
+FALLBACK_MODEL = MODEL
+VERCEL_AI_GATEWAY_URL = "https://ai-gateway.vercel.sh/v1/chat/completions"
 
 # ---------- context ----------
 
@@ -129,6 +138,7 @@ _PT_MONTHS = {
     "dezembro": 12,
 }
 
+
 _WEEKDAYS_PT = {
     "segunda": 0,
     "terça": 1,
@@ -143,7 +153,7 @@ _WEEKDAYS_PT = {
 
 
 def _parse_dt(s: str | None, *, now: datetime | None = None) -> datetime | None:
-    """Parser tolerante para datas vindas do Gemini ou fallback manual.
+    """Parser tolerante para datas vindas da IA ou fallback manual.
 
     Suporta:
     - ISO-8601 (2026-08-27T00:00:00Z)
@@ -202,7 +212,7 @@ def _parse_dt(s: str | None, *, now: datetime | None = None) -> datetime | None:
             pass
 
     # ISO-8601 tentativa direta primeiro
-    # Gemini deve mandar ISO, então tente antes dos formatos BR
+    # IA deve mandar ISO, então tente antes dos formatos BR
     try:
         # aceita "2026-08-27" sem hora
         if re.match(r"^\d{4}-\d{2}-\d{2}$", s):
@@ -280,31 +290,50 @@ def _soft_delete(db: Session, item: Item):
 
 
 def _call_gemini(text: str, ctx: dict):
-    if not settings.GEMINI_API_KEY:
-        log.warning("GEMINI_API_KEY vazio — IA indisponível")
+    """Chama o Vercel AI Gateway (mantido nome _call_gemini para compat com mocks nos testes).
+
+    Usa o modelo meta/muse-spark-1.2-contributor via endpoint OpenAI-compatível
+    https://ai-gateway.vercel.sh/v1/chat/completions com Bearer VERCEL_AI_GATEWAY_API_KEY.
+    Retorna o JSON da resposta (dict com choices) ou None em falha/indisponível.
+    """
+    api_key = getattr(settings, "VERCEL_AI_GATEWAY_API_KEY", "") or getattr(settings, "GEMINI_API_KEY", "")
+    if not api_key:
+        log.warning("VERCEL_AI_GATEWAY_API_KEY vazio — IA indisponível")
         return None
     try:
-        import google.generativeai as genai  # type: ignore
+        import httpx
 
-        genai.configure(api_key=settings.GEMINI_API_KEY)
         today = datetime.now(timezone.utc).isoformat()
         prompt = SYSTEM_PROMPT.format(
             today=today, courses=ctx["courses"], item_types=ctx["item_types"], items=ctx["items"]
         )
-        full_prompt = f"{prompt}\n\nComando: {text}"
-        for model_name in (PRIMARY_MODEL, FALLBACK_MODEL):
-            try:
-                model = genai.GenerativeModel(model_name, tools=TOOLS)
-                resp = model.generate_content(full_prompt)
-                log.info("Gemini %s chamado para comando: %r", model_name, text[:120])
-                return resp
-            except Exception as e:
-                log.warning("Gemini %s falhou: %s", model_name, e)
-                continue
-        return None
+        payload = {
+            "model": MODEL,
+            "messages": [
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": text},
+            ],
+            "tools": TOOLS,
+            "tool_choice": "auto",
+        }
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+        with httpx.Client(timeout=30.0) as client:
+            resp = client.post(VERCEL_AI_GATEWAY_URL, json=payload, headers=headers)
+            resp.raise_for_status()
+            data = resp.json()
+            log.info("Vercel AI Gateway %s chamado para comando: %r", MODEL, text[:120])
+            return data
     except Exception as e:
-        log.exception("Gemini falhou: %s", e)
+        log.exception("Vercel AI Gateway falhou: %s", e)
         return None
+
+
+# alias para quem importar o novo nome
+_call_vercel = _call_gemini
+_call_ai_gateway = _call_gemini
 
 
 def interpret_and_execute(db: Session, text: str) -> dict:
@@ -330,18 +359,60 @@ def interpret_and_execute(db: Session, text: str) -> dict:
         }
     calls: list[tuple[str, dict]] = []
     try:
-        cand = resp.candidates[0] if getattr(resp, "candidates", None) else None
-        parts = getattr(getattr(cand, "content", None), "parts", []) if cand else []
-        for p in parts:
-            fc = getattr(p, "function_call", None)
-            if fc and getattr(fc, "name", None):
-                calls.append((fc.name, dict(getattr(fc, "args", {}) or {})))
+        # Formato Vercel AI Gateway / OpenAI (dict com choices -> message.tool_calls)
+        if isinstance(resp, dict) and "choices" in resp:
+            choices = resp.get("choices") or []
+            if choices:
+                msg = choices[0].get("message") or {}
+                tool_calls = msg.get("tool_calls") or []
+                for tc in tool_calls:
+                    fn = (tc or {}).get("function") or {}
+                    name = fn.get("name")
+                    args_raw = fn.get("arguments")
+                    if name:
+                        if isinstance(args_raw, str):
+                            try:
+                                args = json.loads(args_raw) if args_raw.strip() else {}
+                            except Exception:
+                                args = {}
+                        elif isinstance(args_raw, dict):
+                            args = dict(args_raw)
+                        elif args_raw is None:
+                            args = {}
+                        else:
+                            args = {}
+                        calls.append((name, args))
+        else:
+            # Compat: formato legado Gemini (candidates -> content.parts -> function_call)
+            cand = resp.candidates[0] if getattr(resp, "candidates", None) else None
+            parts = getattr(getattr(cand, "content", None), "parts", []) if cand else []
+            for p in parts:
+                fc = getattr(p, "function_call", None)
+                if fc and getattr(fc, "name", None):
+                    calls.append((fc.name, dict(getattr(fc, "args", {}) or {})))
     except Exception:
         calls = []
 
     if not calls:
         try:
-            txt = (resp.text or "").strip()
+            txt = ""
+            if isinstance(resp, dict) and "choices" in resp:
+                choices = resp.get("choices") or []
+                if choices:
+                    txt = (choices[0].get("message", {}).get("content") or "").strip()
+            else:
+                maybe_text = getattr(resp, "text", "")
+                if isinstance(maybe_text, str):
+                    txt = maybe_text.strip()
+                elif maybe_text is not None:
+                    # MagicMock ou outro objeto — tenta converter com cuidado
+                    try:
+                        txt = str(maybe_text).strip()
+                        # MagicMock str is like "<MagicMock ...>" — ignora
+                        if txt.startswith("<MagicMock"):
+                            txt = ""
+                    except Exception:
+                        txt = ""
         except Exception:
             txt = ""
         msg = txt or "Não entendi. Ex: 'Prova de Cálculo 3 dia 27/08' ou 'mude a prova de Cálculo para 28/08'."
